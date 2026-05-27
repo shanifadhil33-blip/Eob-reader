@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  CreditCard,
   Shield,
   Building2,
   Loader2,
@@ -24,9 +23,6 @@ import {
   MessageSquare,
   Send,
   LogOut,
-  ExternalLink,
-  Crown,
-  Sparkles,
   CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -49,10 +45,8 @@ export default function SettingsPage() {
   const [name, setName] = useState("");
   const [defaultPms, setDefaultPms] = useState("dentrix");
   const [loggingOut, setLoggingOut] = useState(false);
-  const [upgrading, setUpgrading] = useState(false);
   const supabase = createClient();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Feedback state
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -64,17 +58,6 @@ export default function SettingsPage() {
     fetchPractice();
     loadFeedback();
   }, []);
-
-  // Handle upgrade success redirect
-  useEffect(() => {
-    if (searchParams.get("upgraded") === "true") {
-      toast.success("Welcome to Pro! Your account has been upgraded.");
-      // Re-fetch practice to get updated status
-      setTimeout(() => fetchPractice(), 1500);
-      // Clean URL
-      router.replace("/settings");
-    }
-  }, [searchParams]);
 
   async function fetchPractice() {
     const {
@@ -165,36 +148,6 @@ export default function SettingsPage() {
     await supabase.auth.signOut();
     router.push("/login");
   }
-
-  async function handleUpgrade() {
-    setUpgrading(true);
-    try {
-      // Redirect to Polar checkout
-      const productId = process.env.NEXT_PUBLIC_POLAR_PRODUCT_ID || "";
-      window.location.href = `/api/checkout?productId=${productId}`;
-    } catch {
-      toast.error("Failed to start checkout. Please try again.");
-      setUpgrading(false);
-    }
-  }
-
-  async function handleManageSubscription() {
-    try {
-      window.location.href = "/api/billing/portal";
-    } catch {
-      toast.error("Failed to open billing portal.");
-    }
-  }
-
-  const trialDaysRemaining = practice
-    ? Math.max(
-        0,
-        Math.ceil(
-          (new Date(practice.trial_end_date).getTime() - Date.now()) /
-            (1000 * 60 * 60 * 24)
-        )
-      )
-    : 0;
 
   if (loading) {
     return (
@@ -303,132 +256,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Subscription */}
-      <Card className={`border-black/5 shadow-sm rounded-3xl overflow-hidden ${
-        practice?.subscription_status === "pro"
-          ? "bg-gradient-to-b from-amber-50 to-white"
-          : "bg-white"
-      }`}>
-        <CardHeader className={`border-b border-black/5 p-6 rounded-t-3xl ${practice?.subscription_status === "pro" ? "bg-amber-100/50" : "bg-gray-50/50"}`}>
-          <CardTitle className="text-black flex items-center gap-2 text-lg font-bold">
-            {practice?.subscription_status === "pro" ? (
-              <Crown className="w-5 h-5 text-amber-500" />
-            ) : (
-              <CreditCard className="w-5 h-5 text-blue-500" />
-            )}
-            Subscription
-          </CardTitle>
-          <CardDescription className="text-black/50 font-medium">
-            {practice?.subscription_status === "pro"
-              ? "You're on the Pro plan with unlimited access."
-              : "Manage your EOB Reader subscription."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6 space-y-2">
-          <div className="flex items-center justify-between py-4 border-b border-black/5">
-            <span className="text-sm font-semibold text-black/50">Status</span>
-            <Badge
-              className={`px-3 py-1 font-bold text-xs rounded-full ${
-                practice?.subscription_status === "pro"
-                  ? "bg-amber-100 text-amber-700 border-amber-200"
-                  : practice?.subscription_status === "trial" && trialDaysRemaining > 0
-                    ? "bg-blue-100 text-blue-700 border-blue-200"
-                    : practice?.subscription_status === "canceled"
-                      ? "bg-orange-100 text-orange-700 border-orange-200"
-                      : "bg-red-100 text-red-700 border-red-200"
-              }`}
-            >
-              {practice?.subscription_status === "pro"
-                ? "⭐ Pro"
-                : practice?.subscription_status === "trial" && trialDaysRemaining > 0
-                  ? "Free Trial"
-                  : practice?.subscription_status === "trial" && trialDaysRemaining <= 0
-                    ? "Trial Expired"
-                    : practice?.subscription_status === "canceled"
-                      ? "Canceled"
-                      : (practice?.subscription_status || "Trial")}
-            </Badge>
-          </div>
-
-          {/* Trial countdown */}
-          {practice?.subscription_status === "trial" && trialDaysRemaining > 0 && (
-            <div className="flex items-center justify-between py-4 border-b border-black/5">
-              <span className="text-sm font-semibold text-black/50">Days Remaining</span>
-              <span className={`text-sm font-bold ${
-                trialDaysRemaining <= 3 ? "text-red-500" : "text-black"
-              }`}>
-                {trialDaysRemaining} days
-              </span>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between py-4">
-            <span className="text-sm font-semibold text-black/50">Plan</span>
-            <span className="text-sm font-bold text-black">
-              {practice?.subscription_status === "pro"
-                ? "Pro — $29/mo"
-                : practice?.subscription_status === "trial" && trialDaysRemaining > 0
-                  ? `Free Trial — ${trialDaysRemaining} days remaining`
-                  : practice?.subscription_status === "trial" && trialDaysRemaining <= 0
-                    ? "Trial Expired — 1 PDF/day"
-                    : practice?.subscription_status === "canceled"
-                      ? "Canceled — Limited to 1 PDF/day"
-                      : "Expired — 1 PDF/day"}
-            </span>
-          </div>
-
-          {/* Upload limits info */}
-          <div className="flex items-center justify-between py-4 border-t border-black/5">
-            <span className="text-sm font-semibold text-black/50">Daily Upload Limit</span>
-            <span className="text-sm font-bold text-black">
-              {practice?.subscription_status === "pro"
-                ? "Unlimited"
-                : practice?.subscription_status === "trial" && trialDaysRemaining > 0
-                  ? "100 PDFs/day"
-                  : "1 PDF/day"}
-            </span>
-          </div>
-
-          <div className="pt-6">
-            {/* CTA buttons */}
-            {practice?.subscription_status === "pro" ? (
-              <Button
-                onClick={handleManageSubscription}
-                variant="outline"
-                className="w-full border-black/10 text-black hover:bg-gray-50 rounded-xl font-bold py-6 shadow-sm"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Manage Subscription
-              </Button>
-            ) : (
-              <div className="space-y-4">
-                <Button
-                  onClick={handleUpgrade}
-                  disabled={upgrading}
-                  className="w-full bg-black hover:bg-black/80 text-white rounded-xl py-6 font-bold shadow-xl shadow-black/10 border border-black transition-all"
-                >
-                  {upgrading ? (
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  ) : (
-                    <Sparkles className="w-5 h-5 mr-3 text-amber-300" />
-                  )}
-                  Upgrade to Pro — $29/mo
-                </Button>
-                <div className="grid grid-cols-2 gap-3 text-center">
-                  <div className="p-4 rounded-2xl bg-gray-50 border border-black/5">
-                    <p className="text-xs font-semibold text-black/40 mb-1">Free / Expired</p>
-                    <p className="text-sm text-black font-bold">1 PDF/day</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 shadow-sm">
-                    <p className="text-xs font-semibold text-blue-500 mb-1">Pro Plan</p>
-                    <p className="text-sm text-blue-700 font-bold">Unlimited Limit</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Security */}
       <Card className="bg-white border-black/5 shadow-sm rounded-3xl overflow-hidden">

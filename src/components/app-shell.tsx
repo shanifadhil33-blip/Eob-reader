@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   BookOpen,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 import type { Practice } from "@/lib/extraction/types";
@@ -40,6 +41,7 @@ interface AppShellProps {
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/history", label: "History", icon: Clock },
+  { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/guide", label: "Guide", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
