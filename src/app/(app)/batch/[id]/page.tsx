@@ -261,36 +261,36 @@ export default function BatchReviewPage({
   ).length;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50/50">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 bg-white shrink-0 shadow-sm z-10">
-        <div className="flex items-center gap-4">
+    <div className="space-y-6 bg-gray-50/50 pb-20">
+      {/* Top Bar Card */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 bg-white border border-black/5 rounded-3xl shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
           <Link href="/dashboard">
-            <Button variant="outline" size="icon" className="border-black/5 text-black hover:bg-gray-50 shadow-sm rounded-xl">
+            <Button variant="outline" size="icon" className="border-black/5 text-black hover:bg-gray-50 shadow-sm rounded-xl shrink-0">
               <ArrowLeft className="w-4 h-4 text-black/60" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-xl font-bold text-black tracking-tight">{batch.name}</h1>
-            <p className="text-sm font-medium text-black/50">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-black tracking-tight truncate max-w-[180px] sm:max-w-none" title={batch.name}>{batch.name}</h1>
+            <p className="text-xs sm:text-sm font-medium text-black/50">
               <span className="font-bold text-black/70">{approvedCount}/{batch.eob_extractions.length}</span> approved •{" "}
               {batch.eob_extractions.filter((e) => e.review_status === "pending").length} pending
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Dialog>
             <DialogTrigger 
               render={
                 <Button
                   variant="outline"
                   size="default"
-                  className="border-black/10 text-black hover:bg-gray-50 shadow-sm font-bold rounded-xl"
+                  className="border-black/10 text-black hover:bg-gray-50 shadow-sm font-bold rounded-xl px-3 sm:px-4"
                 />
               }
             >
-              <FileText className="w-5 h-5 mr-2 text-blue-600" />
-              View PDF
+              <FileText className="w-5 h-5 sm:mr-2 text-blue-600" />
+              <span className="hidden sm:inline">View PDF</span>
             </DialogTrigger>
             <DialogContent className="max-w-7xl w-[95vw] h-[90vh] p-0 overflow-hidden bg-white border-black/10 flex flex-col rounded-3xl shadow-2xl">
               <DialogHeader className="p-5 border-b border-black/5 bg-gray-50/50 shrink-0 flex flex-row items-center justify-between pointer-events-none">
@@ -333,33 +333,33 @@ export default function BatchReviewPage({
             <Button
               variant="default"
               size="default"
-              className="bg-black text-white hover:bg-black/80 font-bold shadow-md rounded-xl"
+              className="bg-black text-white hover:bg-black/80 font-bold shadow-md rounded-xl px-3 sm:px-4"
             >
-              <Download className="w-4 h-4 mr-2" />
-              Export Batch
+              <Download className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Export Batch</span>
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* EOB Navigation */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 bg-white shrink-0 z-0">
+      {/* EOB Navigation Card */}
+      <div className="flex items-center justify-between p-3 bg-white border border-black/5 rounded-3xl shadow-sm">
         <Button
           variant="outline"
           size="sm"
-          className="text-black/60 hover:text-black border-black/5 rounded-xl font-bold shadow-sm"
+          className="text-black/60 hover:text-black border-black/5 rounded-xl font-bold shadow-sm px-2.5 sm:px-4"
           disabled={currentEobIndex === 0}
           onClick={() => setCurrentEobIndex((prev) => prev - 1)}
         >
-          <ChevronLeft className="w-4 h-4 mr-1" />
-          Previous
+          <ChevronLeft className="w-4 h-4 sm:mr-1" />
+          <span className="hidden sm:inline">Previous</span>
         </Button>
-        <div className="flex items-center gap-2 overflow-x-auto px-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto px-2">
           {batch.eob_extractions.map((eob, i) => (
             <button
               key={eob.id}
               onClick={() => setCurrentEobIndex(i)}
-              className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-bold transition-all shrink-0 ${
+              className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 ${
                 i === currentEobIndex
                   ? eob.review_status === "approved"
                     ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20 border-emerald-600"
@@ -382,88 +382,88 @@ export default function BatchReviewPage({
         <Button
           variant="outline"
           size="sm"
-          className="text-black/60 hover:text-black border-black/5 rounded-xl font-bold shadow-sm"
+          className="text-black/60 hover:text-black border-black/5 rounded-xl font-bold shadow-sm px-2.5 sm:px-4"
           disabled={currentEobIndex === batch.eob_extractions.length - 1}
           onClick={() => setCurrentEobIndex((prev) => prev + 1)}
         >
-          Next
-          <ChevronRight className="w-4 h-4 ml-1" />
+          <span className="hidden sm:inline">Next</span>
+          <ChevronRight className="w-4 h-4 sm:ml-1" />
         </Button>
       </div>
 
-      {/* Full Width Layout flex-row */}
+      {/* Active EOB Content Block */}
       {currentEob && (
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 shrink-0 pb-32">
-          <div className="max-w-6xl mx-auto space-y-6">
-            
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2 bg-white p-6 rounded-3xl border border-black/5 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center border border-black/5">
-                  <FileText className="w-6 h-6 text-blue-500" />
-                </div>
-                <div>
-                  <span className="text-xl text-black font-extrabold pr-2">
+        <div className="space-y-6 pb-32">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2 bg-white p-4 sm:p-6 rounded-3xl border border-black/5 shadow-sm">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-50 rounded-xl flex items-center justify-center border border-black/5 shrink-0">
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-base sm:text-xl text-black font-extrabold truncate max-w-[180px] sm:max-w-none" title={currentEob.pdf_storage_path.split("/").pop()}>
                     {currentEob.pdf_storage_path.split("/").pop()}
                   </span>
                   {getStatusBadge(currentEob.review_status)}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="default"
-                  variant={currentEob.review_status === "flagged" ? "default" : "outline"}
-                  className={`rounded-xl font-bold shadow-sm border ${
-                    currentEob.review_status === "flagged"
-                      ? "bg-amber-500 text-white shadow-inner border-amber-600 hover:bg-amber-600"
-                      : "border-black/5 text-amber-600 hover:bg-amber-50 bg-white"
-                  }`}
-                  disabled={actionLoading !== null}
-                  onClick={() => currentEob.review_status !== "flagged" && handleAction(currentEob.id, "flag")}
-                >
-                  {actionLoading === "flag" ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Flag className="w-4 h-4 mr-2" />
-                  )}
-                  {currentEob.review_status === "flagged" ? "Flagged" : "Flag"}
-                </Button>
-                <Button
-                  size="default"
-                  variant={currentEob.review_status === "rejected" ? "default" : "outline"}
-                  className={`rounded-xl font-bold shadow-sm border ${
-                    currentEob.review_status === "rejected"
-                      ? "bg-red-500 text-white shadow-inner border-red-600 hover:bg-red-600"
-                      : "border-black/5 text-red-600 hover:bg-red-50 bg-white"
-                  }`}
-                  disabled={actionLoading !== null}
-                  onClick={() => currentEob.review_status !== "rejected" && handleAction(currentEob.id, "reject")}
-                >
-                  {actionLoading === "reject" ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <XCircle className="w-4 h-4 mr-2" />
-                  )}
-                  {currentEob.review_status === "rejected" ? "Rejected" : "Reject"}
-                </Button>
-                <Button
-                  size="default"
-                  className={`rounded-xl font-bold shadow-md border ${
-                    currentEob.review_status === "approved"
-                      ? "bg-emerald-600 text-white shadow-inner border-emerald-700 hover:bg-emerald-700"
-                      : "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600"
-                  }`}
-                  disabled={actionLoading !== null}
-                  onClick={() => currentEob.review_status !== "approved" && handleAction(currentEob.id, "approve")}
-                >
-                  {actionLoading === "approve" ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                  )}
-                  {currentEob.review_status === "approved" ? "Approved" : "Approve"}
-                </Button>
-              </div>
             </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
+              <Button
+                size="default"
+                variant={currentEob.review_status === "flagged" ? "default" : "outline"}
+                className={`rounded-xl font-bold shadow-sm border px-3 sm:px-4 py-2 text-xs sm:text-sm h-10 ${
+                  currentEob.review_status === "flagged"
+                    ? "bg-amber-500 text-white shadow-inner border-amber-600 hover:bg-amber-600"
+                    : "border-black/5 text-amber-600 hover:bg-amber-50 bg-white"
+                }`}
+                disabled={actionLoading !== null}
+                onClick={() => currentEob.review_status !== "flagged" && handleAction(currentEob.id, "flag")}
+              >
+                {actionLoading === "flag" ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1 sm:mr-2" />
+                ) : (
+                  <Flag className="w-4 h-4 mr-1 sm:mr-2" />
+                )}
+                {currentEob.review_status === "flagged" ? "Flagged" : "Flag"}
+              </Button>
+              <Button
+                size="default"
+                variant={currentEob.review_status === "rejected" ? "default" : "outline"}
+                className={`rounded-xl font-bold shadow-sm border px-3 sm:px-4 py-2 text-xs sm:text-sm h-10 ${
+                  currentEob.review_status === "rejected"
+                    ? "bg-red-500 text-white shadow-inner border-red-600 hover:bg-red-600"
+                    : "border-black/5 text-red-600 hover:bg-red-50 bg-white"
+                }`}
+                disabled={actionLoading !== null}
+                onClick={() => currentEob.review_status !== "rejected" && handleAction(currentEob.id, "reject")}
+              >
+                {actionLoading === "reject" ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1 sm:mr-2" />
+                ) : (
+                  <XCircle className="w-4 h-4 mr-1 sm:mr-2" />
+                )}
+                {currentEob.review_status === "rejected" ? "Rejected" : "Reject"}
+              </Button>
+              <Button
+                size="default"
+                className={`rounded-xl font-bold shadow-md border px-3 sm:px-4 py-2 text-xs sm:text-sm h-10 ${
+                  currentEob.review_status === "approved"
+                    ? "bg-emerald-600 text-white shadow-inner border-emerald-700 hover:bg-emerald-700"
+                    : "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600"
+                }`}
+                disabled={actionLoading !== null}
+                onClick={() => currentEob.review_status !== "approved" && handleAction(currentEob.id, "approve")}
+              >
+                {actionLoading === "approve" ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1 sm:mr-2" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-1 sm:mr-2" />
+                )}
+                {currentEob.review_status === "approved" ? "Approved" : "Approve"}
+              </Button>
+            </div>
+          </div>
 
             {/* EOB Summary (Horizontal layout) */}
             <Card className="bg-white border-black/5 shadow-sm rounded-3xl overflow-hidden">
@@ -593,8 +593,7 @@ export default function BatchReviewPage({
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
   );
 }

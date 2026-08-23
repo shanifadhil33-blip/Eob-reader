@@ -133,7 +133,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <div>
         <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight">History</h1>
         <p className="text-black/50 mt-1 font-medium">

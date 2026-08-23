@@ -158,7 +158,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-3xl space-y-8">
+    <div className="max-w-3xl space-y-6 md:space-y-8">
       <div>
         <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight">Settings</h1>
         <p className="text-black/50 mt-1 font-medium">

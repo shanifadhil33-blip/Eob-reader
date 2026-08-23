@@ -119,7 +119,7 @@ export default function BillingPage() {
   const isCanceled = practice?.subscription_status === "canceled";
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight flex items-center gap-3">

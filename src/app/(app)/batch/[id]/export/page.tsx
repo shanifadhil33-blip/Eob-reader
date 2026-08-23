@@ -146,7 +146,7 @@ export default function ExportPage({
   const selectedOption = exportOptions.find((o) => o.id === selectedFormat)!;
 
   return (
-    <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href={`/batch/${id}`}>
