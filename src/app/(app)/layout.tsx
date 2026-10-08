@@ -1,6 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -15,25 +15,36 @@ export default async function AppLayout({
   }
 
   const supabase = await createClient();
+  // The proxy already validated this request with getUser(). A second
+  // getUser() here can rotate the single-use refresh token and then
+  // cookies().set() throws: cookie writes are rejected while a Server
+  // Component is rendering. That failed render is the first dashboard
+  // load ("This page couldn't load", with Back, because the error has no
+  // digest). A reload works because the proxy already stored the new cookie.
+  // getSession() reads the cookie and does not contact Auth while the
+  // access token is still valid, which it is right after sign-in.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
 
   if (!user) {
     redirect("/");
   }
 
-  const { data: practice } = await supabase
-    .from("practices")
-    .select("id, name, email, auth_id, default_pms")
-    .eq("auth_id", user.id)
-    .single();
+  const metadata = user.user_metadata;
+  const name =
+    typeof metadata?.full_name === "string"
+      ? metadata.full_name
+      : typeof metadata?.name === "string"
+        ? metadata.name
+        : "User";
 
   return (
     <AppShell
       user={{
-        email: user.email || practice?.email || "",
-        name: practice?.name || user.user_metadata?.full_name || "User",
+        email: user.email || "",
+        name,
       }}
     >
       {children}

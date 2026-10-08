@@ -29,12 +29,12 @@ export function AppShell({
   return (
     <div className="flex min-h-screen flex-col bg-[#f2efe9] text-[#281a0d]">
       <PortfolioNotice />
-      <header className="sticky top-0 z-40 border-b border-[#d1b996] bg-[#f2efe9]">
+      <header className="sticky top-0 z-50 border-b border-[#d1b996] bg-[#f2efe9]">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-4">
           <Link href="/dashboard" className="font-display shrink-0 text-lg">
             EOB Reader
           </Link>
-          <nav className="hidden items-center gap-1 sm:flex">
+          <nav className="hidden shrink-0 items-center gap-1 sm:flex">
             {links.map((link) => {
               const active =
                 pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -42,6 +42,7 @@ export function AppShell({
                 <Link
                   key={link.href}
                   href={link.href}
+                  prefetch={false}
                   className={cn(
                     "inline-flex h-11 items-center rounded-xl px-3 text-sm",
                     active ? "bg-[#eee0c7] text-[#281a0d]" : "text-[#614f38]"
@@ -80,6 +81,7 @@ export function AppShell({
                   <Link
                     key={link.href}
                     href={link.href}
+                    prefetch={false}
                     onClick={() => setOpen(false)}
                     className="flex min-h-11 items-center rounded-xl px-3 text-sm"
                   >

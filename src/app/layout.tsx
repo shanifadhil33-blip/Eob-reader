@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
+import { ClearServiceWorker } from "@/components/clear-service-worker";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col bg-[#f2efe9] text-[#281a0d]">
         {children}
+        <ClearServiceWorker />
         <Toaster />
       </body>
     </html>

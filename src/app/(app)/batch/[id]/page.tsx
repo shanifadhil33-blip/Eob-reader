@@ -26,6 +26,8 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface LineItem {
   id: string;
@@ -188,6 +190,7 @@ export default function BatchReviewPage({
         method: "PATCH",
       });
       if (!res.ok) throw new Error(`Failed to ${action}`);
+      window.dispatchEvent(new Event("eob-batches-changed"));
 
       toast.success(`EOB ${action}ed successfully`);
     } catch {
@@ -283,15 +286,15 @@ export default function BatchReviewPage({
             </DialogContent>
           </Dialog>
 
-          <Link href={`/batch/${id}/export`}>
-            <Button
-              variant="default"
-              size="default"
-              className="rounded-xl bg-[#416c6f] px-4 text-[#f2efe9]"
-            >
-              <Download className="mr-2 size-4" />
-              Export
-            </Button>
+          <Link
+            href={`/batch/${id}/export`}
+            className={cn(
+              buttonVariants({ variant: "default", size: "default" }),
+              "rounded-xl bg-[#416c6f] px-4 text-[#f2efe9]"
+            )}
+          >
+            <Download className="mr-2 size-4" />
+            Export
           </Link>
         </div>
       </div>

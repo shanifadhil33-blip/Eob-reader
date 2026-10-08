@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["127.0.0.1"],
+  serverExternalPackages: ["pdfjs-dist"],
   async redirects() {
     return [
       { source: "/login", destination: "/", permanent: false },

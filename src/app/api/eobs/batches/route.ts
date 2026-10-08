@@ -45,12 +45,21 @@ export async function GET(request: Request) {
       .select("id", { count: "exact", head: true })
       .eq("batch_id", batch.id);
 
-    const actualCount = count ?? 0;
+    const { count: approvedCount } = await supabase
+      .from("eob_extractions")
+      .select("id", { count: "exact", head: true })
+      .eq("batch_id", batch.id)
+      .eq("review_status", "approved");
 
-    // If the EOB count is wrong or the batch is stuck at "processing", fix it
+    const actualCount = count ?? 0;
+    const approved = approvedCount ?? 0;
+
+    // Counts on the batch row are a cache of the extraction rows.
+    // The dashboard and the batch page both read this cache.
     if (
       batch.total_eobs !== actualCount ||
       batch.processed_eobs !== actualCount ||
+      batch.approved_eobs !== approved ||
       (batch.status === "processing" && batch.created_at < fiveMinutesAgo)
     ) {
       const newStatus =
@@ -63,6 +72,7 @@ export async function GET(request: Request) {
         .update({
           total_eobs: actualCount,
           processed_eobs: actualCount,
+          approved_eobs: approved,
           status: newStatus,
           updated_at: new Date().toISOString(),
         })
@@ -70,6 +80,7 @@ export async function GET(request: Request) {
 
       batch.total_eobs = actualCount;
       batch.processed_eobs = actualCount;
+      batch.approved_eobs = approved;
       batch.status = newStatus;
     }
 
