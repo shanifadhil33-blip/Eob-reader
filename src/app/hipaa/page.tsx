@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 
@@ -26,36 +25,19 @@ export default function DataHandlingPage() {
           The app reads the PDF text in the browser and sends that text to
           OpenRouter (model <span className="font-mono text-sm">openai/gpt-4o-mini</span>
           ) to draft line items. If <span className="font-mono text-sm">AI_PROVIDER=ollama</span>{" "}
-          is set, the text goes to a local Ollama server instead. This project
-          does not configure a zero-retention or no-training option on that
-          request.
+          is set, the text goes to a local Ollama server instead.
         </li>
         <li>
-          Scanned PDFs with no text layer are skipped. The file is still
-          uploaded first, and deleting the batch does not remove that skipped
-          copy.
+          A scanned PDF with no text layer is not extracted. You get a short
+          message, and that file is removed from storage instead of being kept
+          as an empty row.
         </li>
-        <li>
-          Nothing is deleted on a schedule. Files and rows stay until you
-          delete the batch, or until the data is removed from the database.
-        </li>
-        <li>
-          There is no audit log of views, edits, or exports. Sign-in is an
-          email code or Google. This app does not store a password.
-        </li>
-        <li>
-          If you subscribe, Polar handles the payment. The PDF is not sent to
-          Polar.
-        </li>
+        <li>Nothing is deleted on a schedule. Delete a batch when you want it gone.</li>
+        <li>There is no audit log. Sign-in is Google. This app does not store a password.</li>
       </ul>
       <p>
         Questions:{" "}
         <a href="mailto:shanifadhil33@gmail.com">shanifadhil33@gmail.com</a>
-      </p>
-      <p>
-        <Link href="/privacy">Privacy</Link>
-        {" · "}
-        <Link href="/terms">Terms</Link>
       </p>
     </LegalPage>
   );

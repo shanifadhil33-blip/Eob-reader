@@ -17,16 +17,9 @@ export default function PrivacyPolicyPage() {
       </p>
       <h2>Account</h2>
       <ul>
-        <li>
-          Email address, from an email sign-in code or from Google. This app
-          does not collect or store a password.
-        </li>
+        <li>Sign-in is Google only. This app does not collect or store a password.</li>
         <li>Practice name and preferred practice-management system, if you save them.</li>
-        <li>
-          If you start a Polar checkout, Polar processes the payment. This app
-          stores a Polar customer id, a subscription id, and a status such as
-          trial or pro. It does not store card numbers.
-        </li>
+        <li>There is no checkout and no payment processor in this app.</li>
       </ul>
       <h2>Documents</h2>
       <ul>
@@ -41,17 +34,16 @@ export default function PrivacyPolicyPage() {
           applied in this code.
         </li>
         <li>Feedback text you submit from Settings.</li>
+        <li>
+          The public demo is fictional and stays in the browser. It is not
+          written to your account.
+        </li>
       </ul>
       <h2>What is not true of this project</h2>
       <ul>
         <li>It is not HIPAA compliant, and it does not sign BAAs.</li>
-        <li>Files are not auto-deleted after 90 days, or on any other timer.</li>
+        <li>Files are not auto-deleted on a timer.</li>
         <li>Access is not written to an audit log.</li>
-        <li>
-          This app does not apply its own AES key or promise a specific TLS
-          version. The site is served over HTTPS. Storage encryption is
-          whatever the host provides for a private bucket.
-        </li>
         <li>Extraction is not guaranteed, and model output can be wrong.</li>
       </ul>
       <h2>How long data stays</h2>
@@ -59,13 +51,7 @@ export default function PrivacyPolicyPage() {
         Until you delete a batch, or until the rows are removed from the
         database. There is no self-serve “delete my account” button. Email{" "}
         <a href="mailto:shanifadhil33@gmail.com">shanifadhil33@gmail.com</a> if
-        you want an account removed. A skipped scan can remain in storage even
-        after the batch is deleted, because only files tied to a saved
-        extraction are removed.
-      </p>
-      <h2>Contact</h2>
-      <p>
-        <a href="mailto:shanifadhil33@gmail.com">shanifadhil33@gmail.com</a>
+        you want an account removed.
       </p>
     </LegalPage>
   );

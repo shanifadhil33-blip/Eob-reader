@@ -1,198 +1,113 @@
 import Link from "next/link";
-import Image from "next/image";
-import {
-  FileText,
-  Upload,
-  CheckCircle,
-  Download,
-  Shield,
-  Zap,
-  ArrowRight,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { LandingHeader } from "@/components/landing-header";
+import { PortfolioNotice } from "@/components/portfolio-notice";
+import { PublicHeader } from "@/components/public-header";
+import { SiteFooter } from "@/components/site-footer";
 
-export default function LandingPage() {
+const steps = [
+  {
+    title: "Upload",
+    body: "Drop in a text-based dental EOB PDF. A scan or photo has no text layer, so it is skipped with a plain message.",
+  },
+  {
+    title: "Draft",
+    body: "The text is sent to a model, which drafts the payer, patient, and line items. The draft can be wrong.",
+  },
+  {
+    title: "Review",
+    body: "You approve, flag, or reject each claim. Export only includes what you approved.",
+  },
+  {
+    title: "Export",
+    body: "Download an X12 835 or a CSV shaped for Dentrix, Eaglesoft, or Open Dental. The 835 may add a balancing adjustment.",
+  },
+];
+
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-black selection:text-white relative overflow-hidden">
-      {/* Subtle background ambient gradient simulating the soft purple/blue base of the inspiration */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-100/40 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-100/40 blur-[120px] pointer-events-none" />
-
-      <LandingHeader />
-
-      {/* Hero Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-44 sm:pt-52 pb-16 sm:pb-24">
-        <div className="text-center max-w-4xl mx-auto">
-          <h1 className="text-4xl sm:text-6xl md:text-8xl font-black tracking-[-0.04em] leading-[1.05] mb-8 text-black">
-            Transform your EOBs into data
+    <div className="flex min-h-screen flex-col bg-[#f2efe9] text-[#281a0d]">
+      <PortfolioNotice />
+      <PublicHeader />
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4">
+        <section className="py-14 sm:py-20">
+          <p className="text-sm font-medium text-[#416c6f]">A portfolio piece</p>
+          <h1 className="font-display mt-3 max-w-3xl text-4xl leading-tight sm:text-6xl">
+            Read a dental EOB, review the draft, export a file.
           </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-black/50 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
-            EOB Reader reads text-based dental EOB PDFs, drafts the line items, and lets you review them before you export a CSV or an X12 835 file.
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[#614f38]">
+            EOB Reader is a learning project. Anyone can try a fictional batch
+            without an account. Sign in with Google when you want a private
+            workspace for your own uploads.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/signup">
-              <Button
-                size="lg"
-                className="bg-black hover:bg-black/90 text-white text-lg px-8 py-6 border border-black shadow-xl shadow-black/10 transition-all hover:shadow-2xl hover:-translate-y-1 rounded-2xl"
-              >
-                Start Extracting for Free
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+          {params.error === "auth" ? (
+            <p className="mt-4 text-sm text-[#8c3a2f]" role="alert">
+              Google sign-in did not finish. Use Sign in in the header to try again.
+            </p>
+          ) : null}
+          <div className="mt-8">
+            <Link
+              href="/demo"
+              className="inline-flex h-11 items-center rounded-xl bg-[#416c6f] px-5 text-sm font-medium text-[#f2efe9]"
+            >
+              Try the demo
             </Link>
           </div>
-        </div>
+        </section>
 
-        {/* Visual Preview - Glassmorphism Card */}
-        <div className="mt-20 sm:mt-28 relative perspective-1000">
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-20 pointer-events-none" />
-          <div className="rounded-3xl border border-black/5 bg-white/40 backdrop-blur-3xl p-2 sm:p-3 shadow-2xl shadow-black/5">
-            <div className="rounded-2xl bg-white border border-black/5 shadow-inner p-4 sm:p-8 min-h-[350px] sm:min-h-[400px] flex items-center justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 w-full max-w-4xl">
-                {/* Simulated PDF side */}
-                <div className="bg-gray-50/50 rounded-2xl p-4 sm:p-6 border border-black/5 shadow-sm">
-                  <div className="flex items-center gap-2 mb-6">
-                    <FileText className="w-4 h-4 text-black/40" />
-                    <span className="text-sm font-medium text-black/60">
-                      EOB_Delta_Dental.pdf
-                    </span>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="h-4 bg-black/5 rounded-md w-3/4" />
-                    <div className="h-4 bg-black/5 rounded-md w-full" />
-                    <div className="h-4 bg-black/5 rounded-md w-5/6" />
-                    <div className="mt-8 space-y-3">
-                      <div className="flex justify-between">
-                        <div className="h-3 bg-indigo-500/10 rounded w-1/3" />
-                        <div className="h-3 bg-emerald-500/10 rounded w-1/4" />
-                      </div>
-                      <div className="flex justify-between">
-                        <div className="h-3 bg-indigo-500/10 rounded w-2/5" />
-                        <div className="h-3 bg-emerald-500/10 rounded w-1/5" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Simulated extraction side */}
-                <div className="bg-white rounded-2xl p-4 sm:p-6 border border-black/5 shadow-lg shadow-black/5">
-                  <div className="flex items-center gap-2 mb-6">
-                    <CheckCircle className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm font-medium text-black/60">
-                      Structured Data Output
-                    </span>
-                  </div>
-                  <div className="space-y-4 text-sm font-medium tracking-tight">
-                    <div className="flex justify-between items-center py-2 border-b border-black/5">
-                      <span className="text-black/40">Patient</span>
-                      <span className="text-black">John Smith</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-black/5">
-                      <span className="text-black/40">D0120</span>
-                      <span className="text-emerald-600 font-mono">$41.60</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-black/5">
-                      <span className="text-black/40">D1110</span>
-                      <span className="text-emerald-600 font-mono">$78.40</span>
-                    </div>
-                    <div className="pt-2 flex justify-between items-center">
-                      <span className="text-black/60 font-semibold">Total</span>
-                      <span className="text-black font-bold font-mono text-base">
-                        $120.00
-                      </span>
-                    </div>
-                  </div>
-                </div>
+        <section className="grid gap-4 pb-16 sm:grid-cols-2">
+          <div className="rounded-2xl bg-[#eee0c7] p-5">
+            <p className="text-xs uppercase tracking-wide text-[#614f38]">Sample EOB</p>
+            <p className="mt-3 font-medium">Lumen Dental Plan</p>
+            <p className="text-sm text-[#614f38]">Patient: Maple Quill (fictional)</p>
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="flex justify-between border-b border-[#d1b996] py-2">
+                <span>D0120 exam</span>
+                <span>$70.00 paid</span>
+              </div>
+              <div className="flex justify-between border-b border-[#d1b996] py-2">
+                <span>D1110 cleaning</span>
+                <span>$140.00 paid</span>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-20 sm:py-32 border-t border-black/5 bg-gray-50/30">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-center mb-6 text-black">
-          Automate the tedious parts.
-        </h2>
-        <p className="text-black/50 text-center mb-12 sm:mb-20 text-lg sm:text-xl font-medium max-w-2xl mx-auto">
-          Four steps for US dental EOBs. The model drafts the line items. You review them before anything is exported.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
-          {[
-            {
-              icon: Upload,
-              title: "Upload",
-              desc: "Drag and drop text-based EOB PDFs, up to 200 at a time. Scans with no text layer are skipped.",
-            },
-            {
-              icon: Zap,
-              title: "Extract",
-              desc: "A text model drafts the line items from the PDF text. It is a draft, not a finished posting.",
-            },
-            {
-              icon: CheckCircle,
-              title: "Review",
-              desc: "Check each draft against the PDF, then approve, flag, or reject it. This step is the point.",
-            },
-            {
-              icon: Download,
-              title: "Export",
-              desc: "Download an X12 835 file, or a CSV for Dentrix, Eaglesoft, or Open Dental.",
-            },
-          ].map((step, i) => (
-            <div
-              key={i}
-              className="group relative p-6 sm:p-8 rounded-3xl bg-white border border-black/5 hover:border-black/10 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/5"
-            >
-              <div
-                className="w-14 h-14 rounded-2xl border border-black/5 bg-gray-50 flex items-center justify-center mb-8 group-hover:bg-black group-hover:border-black transition-all duration-300 shadow-sm"
-              >
-                <step.icon className="w-6 h-6 text-black/60 group-hover:text-white transition-colors" />
-              </div>
-              <div className="text-xs font-bold text-black/30 tracking-widest uppercase mb-3">
-                Step 0{i + 1}
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-black">{step.title}</h3>
-              <p className="text-black/60 font-medium leading-relaxed">
-                {step.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Security Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-20 sm:py-32">
-        <div className="rounded-[24px] sm:rounded-[40px] bg-black text-white p-8 sm:p-16 md:p-24 text-center shadow-2xl shadow-black/20 relative overflow-hidden">
-          <div className="absolute top-[-50%] left-[-20%] w-[70%] h-[150%] bg-gradient-to-br from-white/10 to-transparent blur-3xl rounded-full pointer-events-none" />
-          <Shield className="w-12 h-12 sm:w-20 sm:h-20 text-white/80 mx-auto mb-6 sm:mb-8 stroke-[1.5]" />
-          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight">
-            A portfolio project, not a HIPAA product.
-          </h2>
-          <p className="text-white/60 max-w-2xl mx-auto text-base sm:text-xl font-medium leading-relaxed">
-            Files sit in a private bucket for your account. Nothing is auto-deleted, there is no audit log, and there is no business associate agreement. Use fictional data only.
-          </p>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-black/5 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
-            <div className="flex items-center gap-3">
-              <Image src="/logo.png" alt="EOB Reader" width={28} height={28} className="rounded-lg" />
-              <span className="font-bold text-black tracking-tight">EOB Reader</span>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm font-medium text-black/40">
-              <Link href="/privacy" className="hover:text-black transition-colors">Privacy Policy</Link>
-              <Link href="/terms" className="hover:text-black transition-colors">Terms of Service</Link>
-              <Link href="/hipaa" className="hover:text-black transition-colors">Data handling</Link>
-            </div>
+          <div className="rounded-2xl bg-[#b9cecf] p-5">
+            <p className="text-xs uppercase tracking-wide text-[#416c6f]">After review</p>
+            <p className="mt-3 font-medium">Ready to download</p>
+            <p className="mt-2 text-sm leading-relaxed text-[#281a0d]">
+              An approved claim can leave as an X12 835 or as a CSV. The public
+              demo builds both in the browser. A signed-in account keeps the
+              files private to that Google user.
+            </p>
           </div>
-          <p className="text-black/30 text-sm font-medium">
-            © {new Date().getFullYear()} EOB Reader.
-          </p>
-        </div>
-      </footer>
+        </section>
+
+        <section id="how" className="scroll-mt-20 border-t border-[#d1b996] py-16">
+          <h2 className="font-display text-3xl sm:text-4xl">How it works</h2>
+          <ol className="mt-8 grid gap-4 sm:grid-cols-2">
+            {steps.map((step, index) => (
+              <li key={step.title} className="rounded-2xl bg-[#eee0c7] p-5">
+                <p className="text-sm text-[#416c6f]">0{index + 1}</p>
+                <h3 className="font-display mt-2 text-2xl">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#614f38]">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="border-t border-[#d1b996] py-16">
+          <h2 className="font-display text-3xl">What this is not</h2>
+          <ul className="mt-4 max-w-2xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[#614f38]">
+            <li>Not a HIPAA product, and not a place for real patient information.</li>
+            <li>Not sold. There is no trial, no plan, and no checkout.</li>
+            <li>Not a guarantee. Review the draft before you export anything.</li>
+          </ul>
+        </section>
+      </main>
+      <SiteFooter />
     </div>
   );
 }

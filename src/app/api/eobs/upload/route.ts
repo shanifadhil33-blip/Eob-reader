@@ -17,10 +17,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get practice
     const { data: practice } = await supabase
       .from("practices")
-      .select("*")
+      .select("id")
       .eq("auth_id", user.id)
       .single();
 
@@ -29,37 +28,6 @@ export async function POST(request: Request) {
         { error: "Practice not found" },
         { status: 404 }
       );
-    }
-
-    // ─── Subscription-based upload limits ───
-    const isPro = practice.subscription_status === "pro";
-    const isActiveTrial =
-      practice.subscription_status === "trial" &&
-      new Date(practice.trial_end_date) > new Date();
-    const isExpiredTrial =
-      practice.subscription_status === "trial" &&
-      new Date(practice.trial_end_date) <= new Date();
-    const isCanceled = practice.subscription_status === "canceled";
-    const isExpired = practice.subscription_status === "expired";
-
-    // Determine daily limit based on subscription status
-    let dailyLimit: number;
-    let planLabel: string;
-
-    if (isPro) {
-      dailyLimit = Infinity; // unlimited
-      planLabel = "Pro";
-    } else if (isActiveTrial) {
-      dailyLimit = 100;
-      planLabel = "Free Trial";
-    } else {
-      // Expired trial, canceled, or expired subscription → 1 PDF/day
-      dailyLimit = 1;
-      planLabel = isExpiredTrial
-        ? "Expired Trial"
-        : isCanceled
-          ? "Canceled"
-          : "Expired";
     }
 
     // Parse multipart form
@@ -116,30 +84,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Enforce daily upload limit (skip for Pro — unlimited)
-    if (!isPro) {
-      const today = new Date().toISOString().split("T")[0];
-      let dailyCount = practice.daily_upload_count;
-
-      if (practice.daily_upload_reset_date !== today) {
-        dailyCount = 0;
-      }
-
-      if (dailyCount + files.length > dailyLimit) {
-        const remaining = Math.max(0, dailyLimit - dailyCount);
-        const upgradeMsg =
-          dailyLimit === 1
-            ? " Upgrade to Pro for unlimited uploads."
-            : "";
-        return NextResponse.json(
-          {
-            error: `Daily limit exceeded. ${planLabel} allows ${dailyLimit} PDF${dailyLimit === 1 ? "" : "s"}/day. You have ${remaining} remaining today.${upgradeMsg}`,
-          },
-          { status: 429 }
-        );
-      }
-    }
-
     // Create batch
     const batchName = `Batch ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
     const { data: batch, error: batchError } = await supabase
@@ -190,8 +134,11 @@ export async function POST(request: Request) {
           }
 
           if (!pdfText.trim()) {
-            fileErrors.push(`${file.name}: no text could be extracted (scanned PDF?)`);
-            return; // Skip this file gracefully
+            await supabase.storage.from("eob-pdfs").remove([filePath]);
+            fileErrors.push(
+              `${file.name}: This PDF looks scanned. EOB Reader can only read PDFs that already have a text layer.`
+            );
+            return;
           }
 
           // Send text to our extraction utility (which routes to Ollama or OpenRouter)
@@ -287,21 +234,6 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", batch.id);
-
-    // Update daily upload count (for all non-pro users)
-    if (!isPro) {
-      const today = new Date().toISOString().split("T")[0];
-      await supabase
-        .from("practices")
-        .update({
-          daily_upload_count:
-            practice.daily_upload_reset_date === today
-              ? practice.daily_upload_count + files.length
-              : files.length,
-          daily_upload_reset_date: today,
-        })
-        .eq("id", practice.id);
-    }
 
     return NextResponse.json({
       batchId: batch.id,

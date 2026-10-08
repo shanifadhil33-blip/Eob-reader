@@ -6,7 +6,6 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  // Skip auth when Supabase is not configured (local dev without credentials)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl || supabaseUrl === "your_supabase_url" || !supabaseUrl.startsWith("http")) {
     return supabaseResponse;
@@ -39,26 +38,21 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Public routes that don't require auth
-  const publicRoutes = [
-    "/",
-    "/login",
-    "/signup",
-    "/privacy",
-    "/terms",
-    "/hipaa",
-    "/auth/callback",
-    "/api/keep-alive",
-  ];
-  const isPublicRoute = publicRoutes.some(
-    (route) =>
-      request.nextUrl.pathname === route ||
-      request.nextUrl.pathname.startsWith("/api/webhooks")
-  );
+  const publicRoutes = ["/", "/demo", "/privacy", "/terms", "/hipaa", "/auth/callback", "/api/keep-alive"];
+  const path = request.nextUrl.pathname;
+  const isPublicRoute =
+    publicRoutes.some((route) => path === route) || path.startsWith("/api/webhooks");
 
-  if (!user && !isPublicRoute) {
+  if (!user && !isPublicRoute && !path.startsWith("/api/")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (user && path === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
