@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PortfolioNotice } from "@/components/portfolio-notice";
 
 function GoogleIcon() {
   return (
@@ -21,7 +22,9 @@ export function LandingHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-black/5 bg-white/70 backdrop-blur-xl">
+    <div className="fixed top-0 left-0 right-0 z-50">
+      <PortfolioNotice />
+      <nav className="border-b border-black/5 bg-white/70 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         <Link href="/" className="flex min-w-0 shrink items-center gap-2">
           <Image
@@ -99,6 +102,7 @@ export function LandingHeader() {
           </Link>
         </div>
       )}
-    </nav>
+      </nav>
+    </div>
   );
 }

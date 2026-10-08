@@ -1,10 +1,12 @@
 import OpenAI from "openai";
 import type { EOBExtraction } from "./types";
 
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+function getOpenRouter(): OpenAI {
+  return new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY || "not-configured",
+  });
+}
 
 const TEXT_EXTRACTION_PROMPT = `You are an expert US dental insurance EOB (Explanation of Benefits) data extraction AI.
 
@@ -121,7 +123,7 @@ export async function extractEOBFromText(
   }
 
   // Fallback to OpenRouter (default for text)
-  const response = await openai.chat.completions.create({
+  const response = await getOpenRouter().chat.completions.create({
     model: "openai/gpt-4o-mini",
     messages: [
       {

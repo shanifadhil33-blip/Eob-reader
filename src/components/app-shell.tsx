@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Practice } from "@/lib/extraction/types";
+import { PortfolioNotice } from "@/components/portfolio-notice";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -36,6 +37,13 @@ interface AppShellProps {
     avatarUrl?: string;
   };
   practice: Practice | null;
+}
+
+function daysUntil(isoDate: string): number {
+  return Math.max(
+    0,
+    Math.ceil((new Date(isoDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  );
 }
 
 const navItems = [
@@ -103,13 +111,7 @@ export function AppShell({ children, user, practice }: AppShellProps) {
 
         {/* Subscription Status */}
         {practice && (() => {
-          const daysRemaining = Math.max(
-            0,
-            Math.ceil(
-              (new Date(practice.trial_end_date).getTime() - Date.now()) /
-                (1000 * 60 * 60 * 24)
-            )
-          );
+          const daysRemaining = daysUntil(practice.trial_end_date);
           const isExpiredTrial = practice.subscription_status === "trial" && daysRemaining <= 0;
           const isActiveTrial = practice.subscription_status === "trial" && daysRemaining > 0;
 
@@ -262,6 +264,9 @@ export function AppShell({ children, user, practice }: AppShellProps) {
         <div className="absolute bottom-0 left-0 w-[50%] h-[50%] bg-blue-50/50 rounded-tr-full blur-[100px] pointer-events-none" />
         
         <div className="relative z-10 md:p-8 p-4 pt-20 md:pt-8 min-h-screen max-w-6xl mx-auto">
+          <div className="sticky top-16 z-20 -mx-4 mb-4 md:static md:mx-0 md:mb-6">
+            <PortfolioNotice />
+          </div>
           {children}
         </div>
       </main>

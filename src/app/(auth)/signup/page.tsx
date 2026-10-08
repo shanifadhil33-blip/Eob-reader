@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { PortfolioNotice } from "@/components/portfolio-notice";
 
 export default function SignupPage() {
   const [step, setStep] = useState<"email" | "otp">("email");
@@ -53,8 +54,8 @@ export default function SignupPage() {
         toast.success("Verification code sent to your email!");
         setStep("otp");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to send code.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to send code.");
     } finally {
       setLoading(false);
     }
@@ -90,15 +91,17 @@ export default function SignupPage() {
           router.push("/dashboard");
         }
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to verify code.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to verify code.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 selection:bg-black selection:text-white">
+    <div className="min-h-screen bg-gray-50 flex flex-col selection:bg-black selection:text-white">
+      <PortfolioNotice />
+      <div className="relative flex flex-1 items-center justify-center px-4 py-8">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-blue-100/40 rounded-full blur-[100px]" />
@@ -245,6 +248,7 @@ export default function SignupPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

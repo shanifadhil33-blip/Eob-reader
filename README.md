@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EOB Reader
 
-## Getting Started
+A portfolio project that reads text-based dental Explanation of Benefits PDFs, drafts line items for a person to review, and exports an X12 835 file or a CSV for Dentrix, Eaglesoft, or Open Dental.
 
-First, run the development server:
+It is a learning project by Adhil. It is **not** a HIPAA product, it does not offer a Business Associate Agreement, and it is **not** for real patient information. Use fictional documents only.
+
+Live site: https://eob-reader.vercel.app
+
+## What it actually does
+
+- Upload text-based PDFs (up to 200 at a time). The text layer is read in the browser with pdf.js.
+- Scanned PDFs with no text layer are skipped.
+- That text is sent to OpenRouter (`openai/gpt-4o-mini`). A local Ollama path exists if `AI_PROVIDER=ollama`.
+- You approve, flag, or reject each draft before export.
+- Approved rows can be downloaded as an X12 835 or as a PMS CSV.
+
+Sign-in is an email code or Google, through Supabase. Billing is Polar: a 14-day trial, then a $29/month Pro plan. There is no public demo yet.
+
+## Honest limits
+
+- No automatic deletion. The only scheduled route is a keep-alive check.
+- No audit log is written. The `audit_log` table is unused, and so is `payer_templates`.
+- A multi-patient EOB keeps only the first patient the model returns.
+- The 835 builder can insert CO-45 or OA-23 adjustments so the file balances.
+- `Security-For-Vibe-Coded-Apps.md` is a generic note that shipped with the repo. It is not this app’s security policy.
+
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The dev server listens on port 3020. Without Supabase env vars the marketing pages still render, and sign-in does not work.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy the variables you need into `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (webhooks and keep-alive)
+- `OPENROUTER_API_KEY`
+- `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `NEXT_PUBLIC_POLAR_PRODUCT_ID`
+- `NEXT_PUBLIC_APP_URL`
+- `CRON_SECRET` (keep-alive)
 
-## Learn More
+Apply `supabase/migrations` in order before using upload or billing.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Questions: shanifadhil33@gmail.com

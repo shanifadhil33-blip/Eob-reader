@@ -147,7 +147,7 @@ export default function OnboardingPage() {
             Set up your practice
           </h1>
           <p className="text-sm text-white/50">
-            Let's get your workspace ready
+            Let&apos;s get your workspace ready
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
