@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 
@@ -14,26 +14,20 @@ export default async function AppLayout({
     redirect("/");
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // Set by proxy after a single getUser(). Reading it here avoids a second
+  // auth refresh in this Server Component, which crashed the first dashboard
+  // paint after Google sign-in.
+  const headerStore = await headers();
+  const userId = headerStore.get("x-eob-user-id");
+  if (!userId) {
     redirect("/");
   }
-
-  const { data: practice } = await supabase
-    .from("practices")
-    .select("id, name, email, auth_id, default_pms")
-    .eq("auth_id", user.id)
-    .single();
 
   return (
     <AppShell
       user={{
-        email: user.email || practice?.email || "",
-        name: practice?.name || user.user_metadata?.full_name || "User",
+        email: headerStore.get("x-eob-user-email") || "",
+        name: headerStore.get("x-eob-user-name") || "User",
       }}
     >
       {children}

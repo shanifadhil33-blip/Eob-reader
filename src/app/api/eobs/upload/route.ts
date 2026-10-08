@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extractEOBFromText } from "@/lib/extraction/openrouter";
+import { readPdfTextLayer } from "@/lib/pdf/read-pdf";
+import { alphanumericCount, MEANINGFUL_PAGE_CHARS } from "@/lib/pdf/text-layer";
 import type { EOBLineItem } from "@/lib/extraction/types";
 
 export async function POST(request: Request) {
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
     // Parse multipart form
     const formData = await request.formData();
     const files = formData.getAll("files") as File[];
-    const texts = formData.getAll("texts") as string[];
+    const texts = formData.getAll("texts").map((value) => (typeof value === "string" ? value : ""));
 
     if (files.length === 0) {
       return NextResponse.json(
@@ -67,14 +69,6 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-    }
-
-    // Verify lengths match logically
-    if (texts.length > 0 && texts.length !== files.length) {
-      return NextResponse.json(
-        { error: "Mismatch between files and extracted texts" },
-        { status: 400 }
-      );
     }
 
     if (files.length > 200) {
@@ -113,14 +107,31 @@ export async function POST(request: Request) {
       const chunk = files.slice(i, i + CONCURRENCY_LIMIT);
       
       await Promise.all(chunk.map(async (file, chunkIndex) => {
-        const originalIndex = i + chunkIndex;
-        const pdfText = texts[originalIndex] || "";
-        
+        const clientText = texts[i + chunkIndex] || "";
         try {
-          // Upload to Supabase Storage
-          const filePath = `${practice.id}/${batch.id}/${file.name}`;
           const arrayBuffer = await file.arrayBuffer();
           const buffer = new Uint8Array(arrayBuffer);
+          let pdfText = "";
+          try {
+            const layer = await readPdfTextLayer(buffer);
+            if (layer.textPages === 0) {
+              fileErrors.push(
+                `${file.name}: This PDF looks scanned. EOB Reader can only read PDFs that already have a text layer.`
+              );
+              return;
+            }
+            pdfText = layer.text;
+          } catch {
+            if (alphanumericCount(clientText) >= MEANINGFUL_PAGE_CHARS) {
+              pdfText = clientText;
+            } else {
+              fileErrors.push(`${file.name}: The PDF could not be read. Try the file again.`);
+              return;
+            }
+          }
+
+          // Upload to Supabase Storage
+          const filePath = `${practice.id}/${batch.id}/${file.name}`;
 
           const { error: uploadError } = await supabase.storage
             .from("eob-pdfs")
@@ -131,14 +142,6 @@ export async function POST(request: Request) {
           if (uploadError) {
             fileErrors.push(`${file.name}: storage upload failed`);
             return; // Skip this file
-          }
-
-          if (!pdfText.trim()) {
-            await supabase.storage.from("eob-pdfs").remove([filePath]);
-            fileErrors.push(
-              `${file.name}: This PDF looks scanned. EOB Reader can only read PDFs that already have a text layer.`
-            );
-            return;
           }
 
           // Send text to our extraction utility (which routes to Ollama or OpenRouter)

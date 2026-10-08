@@ -7,6 +7,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { pageHasText, textFromItems } from "@/lib/pdf/text-layer";
 
 interface BatchSummary {
   id: string;
@@ -20,19 +21,18 @@ interface BatchSummary {
 
 async function readPdfText(file: File) {
   const pdfjsLib = await import("pdfjs-dist");
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-  }
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  let text = "";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const parts: string[] = [];
+  let textPages = 0;
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
     const content = await page.getTextContent();
-    text +=
-      content.items.map((item) => ("str" in item ? item.str : "")).join(" ") + "\n";
+    const pageText = textFromItems(content.items);
+    if (pageHasText(pageText)) textPages += 1;
+    parts.push(pageText);
   }
-  return text;
+  return { text: parts.join("\n"), textPages };
 }
 
 export default function DashboardPage() {
@@ -47,7 +47,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadBatches() {
       try {
-        const res = await fetch("/api/eobs/batches");
+        const res = await fetch("/api/eobs/batches", { cache: "no-store" });
         if (!res.ok) return;
         const data: unknown = await res.json();
         if (Array.isArray(data)) setBatches(data as BatchSummary[]);
@@ -56,6 +56,15 @@ export default function DashboardPage() {
       }
     }
     void loadBatches();
+    const onChange = () => {
+      void loadBatches();
+    };
+    window.addEventListener("eob-batches-changed", onChange);
+    window.addEventListener("focus", onChange);
+    return () => {
+      window.removeEventListener("eob-batches-changed", onChange);
+      window.removeEventListener("focus", onChange);
+    };
   }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -83,18 +92,19 @@ export default function DashboardPage() {
       const formData = new FormData();
       const scanned: string[] = [];
       for (const file of selectedFiles) {
-        let text = "";
         try {
-          text = await readPdfText(file);
+          const layer = await readPdfText(file);
+          if (layer.textPages === 0) {
+            scanned.push(file.name);
+            continue;
+          }
+          formData.append("files", file);
+          formData.append("texts", layer.text);
         } catch {
-          text = "";
+          // A worker or parse error is not a scan. The server reads the file itself.
+          formData.append("files", file);
+          formData.append("texts", "");
         }
-        if (!text.trim()) {
-          scanned.push(file.name);
-          continue;
-        }
-        formData.append("files", file);
-        formData.append("texts", text);
       }
 
       if (scanned.length > 0) {
@@ -250,11 +260,12 @@ export default function DashboardPage() {
                 </Link>
                 <button
                   type="button"
-                  className="inline-flex h-11 w-11 items-center justify-center text-[#8c3a2f]"
+                  className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm text-[#8c3a2f]"
                   aria-label={`Delete ${batch.name}`}
                   onClick={() => setPendingDelete(batch)}
                 >
                   <Trash2 className="size-4" />
+                  Delete
                 </button>
               </li>
             ))}
