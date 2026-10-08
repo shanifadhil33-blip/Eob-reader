@@ -1,28 +1,28 @@
-import OpenAI from "openai";
+import {
+  extractWithFallback,
+  FREE_EXTRACTION_MODELS,
+  OUTPUT_TOKEN_CAP,
+  parseExtractionJson,
+  READER_BUSY_MESSAGE,
+  type ModelCompletion,
+} from "./model-chain";
 import type { EOBExtraction } from "./types";
 
-function getOpenRouter(): OpenAI {
-  return new OpenAI({
-    baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY || "not-configured",
-  });
-}
+const TEXT_EXTRACTION_PROMPT = `You are an expert US insurance EOB (Explanation of Benefits) data extraction AI.
 
-const TEXT_EXTRACTION_PROMPT = `You are an expert US dental insurance EOB (Explanation of Benefits) data extraction AI.
-
-Your task: Extract ALL structured data from the following raw text extracted from a dental EOB document with maximum accuracy.
+Your task: Extract ALL structured data from the following raw text extracted from an EOB document with maximum accuracy.
 
 Rules:
 1. Output ONLY valid JSON matching the provided schema. No markdown, no explanation.
-2. Extract EVERY line item — do not skip any procedure.
-3. Use standard dental CDT codes (D0120, D1110, D2740, etc.).
-4. Adjustment codes follow ANSI X12 standards (CO-45, PR-1, PR-2, PR-3, OA-23, etc.).
-5. All dollar amounts as numbers with 2 decimal places.
-6. Dates in YYYY-MM-DD format.
-7. If a field is not visible or not applicable, use null.
-8. Include a confidence_score (0.0 to 1.0) for the overall extraction quality.
-9. If multiple patients appear on one EOB, return an array of extraction objects.
-10. For per-field confidence, flag any field below 0.80 confidence.
+2. Extract EVERY line item — do not skip any procedure, including denied lines.
+3. Copy the procedure code as printed. Dental lines use CDT codes such as D0120. Other lines may use CPT codes such as 93000 or 80053.
+4. Adjustment codes follow ANSI X12 standards (CO-45, CO-50, CO-197, PR-1, PR-2, OA-23, etc.).
+5. If a line is denied, set insurance_paid to 0 and keep the adjustment code and amount.
+6. All dollar amounts as numbers with 2 decimal places.
+7. Dates in YYYY-MM-DD format.
+8. If a field is not visible or not applicable, use null.
+9. Include a confidence_score (0.0 to 1.0) for the overall extraction quality.
+10. If multiple patients appear on one EOB, return an array of extraction objects.
 
 Required JSON schema:
 {
@@ -75,77 +75,79 @@ Required JSON schema:
 [RAW EOB TEXT BEGINS BELOW]
 `;
 
-export async function extractEOBFromText(
-  pdfText: string
+function readMessageContent(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const choices = (payload as { choices?: unknown }).choices;
+  if (!Array.isArray(choices) || !choices[0] || typeof choices[0] !== "object") return null;
+  const content = (choices[0] as { message?: { content?: unknown } }).message?.content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return null;
+  const text = content
+    .map((part) => {
+      if (typeof part === "string") return part;
+      if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+        return part.text;
+      }
+      return "";
+    })
+    .join("");
+  return text.trim() ? text : null;
+}
 
-): Promise<EOBExtraction> {
+async function completeWithOpenRouter(model: string, pdfText: string): Promise<ModelCompletion> {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: OUTPUT_TOKEN_CAP,
+      messages: [
+        {
+          role: "user",
+          content: `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}`,
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(20000),
+  });
+
+  if (!response.ok) return { status: response.status, content: null };
+  return { status: response.status, content: readMessageContent(await response.json()) };
+}
+
+export async function extractEOBFromText(pdfText: string): Promise<EOBExtraction> {
   const aiProvider = process.env.AI_PROVIDER || "openrouter";
 
   if (aiProvider === "ollama") {
     const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-    const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2-vision"; // Recommend a vision model for images
-
-    // Send the prompt and the raw parsed PDF text
-    const promptWithText = `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}`;
-
-    const response = await fetch(`${ollamaUrl}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: ollamaModel,
-        messages: [
-          {
-            role: "user",
-            content: promptWithText,
-          },
-        ],
-        stream: false,
-        format: "json", // Ask Ollama to output standard JSON
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ollama API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const jsonText = data.message?.content || "{}";
-
+    const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2-vision";
     try {
-      const parsed = JSON.parse(jsonText);
-      if (Array.isArray(parsed)) return parsed[0] as EOBExtraction;
-      return parsed as EOBExtraction;
-    } catch {
-      throw new Error("Failed to parse AI extraction response from Ollama");
+      const response = await fetch(`${ollamaUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: ollamaModel,
+          messages: [{ role: "user", content: `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}` }],
+          stream: false,
+          format: "json",
+        }),
+      });
+      if (!response.ok) throw new Error(READER_BUSY_MESSAGE);
+      const data: unknown = await response.json();
+      const jsonText =
+        data && typeof data === "object" && "message" in data
+          ? (data as { message?: { content?: unknown } }).message?.content
+          : null;
+      if (typeof jsonText !== "string") throw new Error(READER_BUSY_MESSAGE);
+      return parseExtractionJson(jsonText);
+    } catch (error) {
+      if (error instanceof Error && error.message === READER_BUSY_MESSAGE) throw error;
+      throw new Error(READER_BUSY_MESSAGE);
     }
   }
 
-  // Fallback to OpenRouter (default for text)
-  const response = await getOpenRouter().chat.completions.create({
-    model: "openai/gpt-4o-mini",
-    messages: [
-      {
-        role: "user",
-        content: `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}`,
-      },
-    ],
-    response_format: { type: "json_object" },
-  });
-
-  const jsonText = response.choices[0].message.content || "{}";
-
-  try {
-    const parsed = JSON.parse(jsonText);
-
-    // If the API returns an array (multi-patient EOB), take the first for now
-    if (Array.isArray(parsed)) {
-      return parsed[0] as EOBExtraction;
-    }
-
-    return parsed as EOBExtraction;
-  } catch {
-    throw new Error("Failed to parse AI extraction response from OpenRouter");
-  }
+  return extractWithFallback((model) => completeWithOpenRouter(model, pdfText), FREE_EXTRACTION_MODELS);
 }

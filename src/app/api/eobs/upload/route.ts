@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { READER_BUSY_MESSAGE } from "@/lib/extraction/model-chain";
 import { extractEOBFromText } from "@/lib/extraction/openrouter";
 import { readPdfTextLayer } from "@/lib/pdf/read-pdf";
 import { alphanumericCount, MEANINGFUL_PAGE_CHARS } from "@/lib/pdf/text-layer";
@@ -219,11 +220,8 @@ export async function POST(request: Request) {
           }
 
           processedCount++;
-        } catch (fileError: unknown) {
-          const message =
-            fileError instanceof Error ? fileError.message : "processing failed";
-          fileErrors.push(`${file.name}: ${message}`);
-          // Don't rethrow — allow other files to continue and batch status to update
+        } catch {
+          fileErrors.push(`${file.name}: ${READER_BUSY_MESSAGE}`);
         }
       }));
     }

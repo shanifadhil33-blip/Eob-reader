@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { PortfolioNotice } from "@/components/portfolio-notice";
 import { SiteFooter } from "@/components/site-footer";
 import { SignOutControl } from "@/components/sign-out-control";
+import { useCloseOnEscape } from "@/components/use-close-on-escape";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -25,6 +26,8 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  useCloseOnEscape(open, close);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f2efe9] text-[#281a0d]">

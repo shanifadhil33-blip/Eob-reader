@@ -38,7 +38,8 @@ async function readPdfText(file: File) {
 export default function DashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [batches, setBatches] = useState<BatchSummary[]>([]);
+  const [batches, setBatches] = useState<BatchSummary[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BatchSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -48,11 +49,13 @@ export default function DashboardPage() {
     async function loadBatches() {
       try {
         const res = await fetch("/api/eobs/batches", { cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error("load");
         const data: unknown = await res.json();
-        if (Array.isArray(data)) setBatches(data as BatchSummary[]);
+        if (!Array.isArray(data)) throw new Error("load");
+        setBatches(data as BatchSummary[]);
+        setLoadError(false);
       } catch {
-        // The empty list stays visible.
+        setLoadError(true);
       }
     }
     void loadBatches();
@@ -150,7 +153,7 @@ export default function DashboardPage() {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed");
-      setBatches((prev) => prev.filter((batch) => batch.id !== pendingDelete.id));
+      setBatches((prev) => prev?.filter((batch) => batch.id !== pendingDelete.id) ?? prev);
       setPendingDelete(null);
     } catch {
       toast.error("Could not delete that batch.");
@@ -159,8 +162,9 @@ export default function DashboardPage() {
     }
   }
 
-  const processed = batches.reduce((sum, batch) => sum + (batch.processed_eobs || 0), 0);
-  const exported = batches.filter((batch) => batch.status === "exported").length;
+  const loading = batches === null && !loadError;
+  const processed = batches?.reduce((sum, batch) => sum + (batch.processed_eobs || 0), 0) ?? 0;
+  const exported = batches?.filter((batch) => batch.status === "exported").length ?? 0;
 
   return (
     <div className="space-y-8">
@@ -171,18 +175,31 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          ["Batches", String(batches.length)],
-          ["EOBs read", String(processed)],
-          ["Exported batches", String(exported)],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl bg-[#eee0c7] p-4">
-            <p className="text-sm text-[#614f38]">{label}</p>
-            <p className="font-display mt-1 text-3xl">{value}</p>
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <div className="grid gap-3 sm:grid-cols-3" aria-busy="true" aria-label="Loading batches">
+          {["Batches", "EOBs read", "Exported batches"].map((label) => (
+            <div key={label} className="rounded-2xl bg-[#eee0c7] p-4">
+              <p className="text-sm text-[#614f38]">{label}</p>
+              <div className="mt-3 h-8 w-12 rounded-lg bg-[#d1b996]" />
+            </div>
+          ))}
+        </div>
+      ) : loadError && batches === null ? (
+        <p className="text-sm text-[#8c3a2f]">Could not load batches. Reload the page.</p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Batches", String(batches?.length ?? 0)],
+            ["EOBs read", String(processed)],
+            ["Exported batches", String(exported)],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-2xl bg-[#eee0c7] p-4">
+              <p className="text-sm text-[#614f38]">{label}</p>
+              <p className="font-display mt-1 text-3xl">{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <section className="rounded-2xl bg-[#eee0c7] p-4 sm:p-6">
         <h2 className="font-display text-2xl">Upload</h2>
@@ -244,7 +261,12 @@ export default function DashboardPage() {
 
       <section>
         <h2 className="font-display text-2xl">Recent batches</h2>
-        {batches.length === 0 ? (
+        {loading ? (
+          <div className="mt-3 space-y-3 rounded-2xl bg-[#eee0c7] p-4" aria-busy="true">
+            <div className="h-4 w-48 rounded bg-[#d1b996]" />
+            <div className="h-4 w-32 rounded bg-[#d1b996]" />
+          </div>
+        ) : loadError && batches === null ? null : !batches || batches.length === 0 ? (
           <p className="mt-3 text-sm text-[#614f38]">
             No batches yet. Drop a text-based EOB PDF in the box above.
           </p>
