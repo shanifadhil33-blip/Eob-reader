@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, use } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,10 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft,
   Download,
   FileSpreadsheet,
-  FileText,
   CheckCircle,
   AlertTriangle,
   XCircle,
@@ -23,6 +20,8 @@ import {
   Shield,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BackLink } from "@/components/back-link";
+import { OptionMenu } from "@/components/option-menu";
 
 type ExportFormat = "835" | "dentrix" | "eaglesoft" | "open_dental";
 
@@ -33,7 +32,7 @@ const exportOptions = [
     description: "ANSI X12 005010X221A1 — auto-posts in all PMS",
     detail: "Recommended. Works with Dentrix, Open Dental, and Eaglesoft ERA import.",
     icon: Shield,
-    color: "from-blue-500 to-cyan-500 text-white shadow-blue-500/20",
+    color: "bg-[#416c6f]",
     recommended: true,
   },
   {
@@ -146,102 +145,26 @@ export default function ExportPage({
   const selectedOption = exportOptions.find((o) => o.id === selectedFormat)!;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 md:space-y-8">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href={`/batch/${id}`}>
-          <Button
-            variant="outline"
-            size="icon"
-            className="border-black/5 text-black hover:bg-gray-50 shadow-sm rounded-xl"
-          >
-            <ArrowLeft className="w-4 h-4 text-black/60" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-extrabold text-black tracking-tight">Export to PMS</h1>
-          <p className="text-black/50 font-medium text-sm mt-1">
-            Generate an 835 ERA file or legacy CSV for your PMS.
-          </p>
-        </div>
-      </div>
-
-      {/* Primary: 835 ERA */}
+    <div className="max-w-3xl space-y-6">
+      <BackLink href={`/batch/${id}`} />
       <div>
-        <h2 className="text-xs font-bold text-black/40 uppercase tracking-widest mb-4">
-          Recommended Format
-        </h2>
-        <button
-          onClick={() => {
-            setSelectedFormat("835");
-            setExported(false);
-            setValidationErrors([]);
-          }}
-          className={`w-full p-6 bg-white rounded-3xl border text-left transition-all shadow-sm ${
-            selectedFormat === "835"
-              ? "border-blue-500 ring-2 ring-blue-500/20 shadow-md shadow-blue-500/5"
-              : "border-black/5 hover:border-black/15 hover:shadow-md"
-          }`}
-        >
-          <div className="flex items-start gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm border border-blue-400">
-              <Shield className="w-7 h-7 text-white" />
-            </div>
-            <div className="flex-1 pt-1.5">
-              <div className="flex items-center gap-3">
-                <h3 className="font-extrabold text-black text-lg">
-                  X12 835 (ERA)
-                </h3>
-                <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-bold px-3 py-1">
-                  Industry Standard
-                </Badge>
-              </div>
-              <p className="text-sm font-semibold text-black/60 mt-2">
-                ANSI X12 005010X221A1 Electronic Remittance Advice
-              </p>
-              <p className="text-sm font-medium text-black/50 mt-3 leading-relaxed max-w-xl">
-                Auto-posts in Dentrix, Open Dental, and Eaglesoft. Includes
-                full CLP/SVC/CAS segments with mathematically balanced
-                adjustment codes. Ingests exactly like a clearinghouse-generated ERA.
-              </p>
-            </div>
-          </div>
-        </button>
+        <h1 className="font-display text-4xl">Export</h1>
+        <p className="mt-2 text-sm text-[#614f38]">
+          Approved claims only. An 835 can add CO-45 or OA-23 so the file balances.
+          These layouts are a starting point, not a promise that a practice-management system will post them.
+        </p>
       </div>
-
-      {/* Legacy CSV Options */}
-      <div>
-        <h2 className="text-xs font-bold text-black/40 uppercase tracking-widest mb-4">
-          Legacy CSV (Fallback Options)
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {exportOptions
-            .filter((o) => o.id !== "835")
-            .map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => {
-                  setSelectedFormat(opt.id);
-                  setExported(false);
-                  setValidationErrors([]);
-                }}
-                className={`p-5 rounded-2xl border bg-white text-left transition-all shadow-sm ${
-                  selectedFormat === opt.id
-                    ? "border-black ring-1 ring-black shadow-md"
-                    : "border-black/5 hover:border-black/15 hover:shadow-md"
-                }`}
-              >
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center mb-4 border border-black/5">
-                  <FileSpreadsheet className="w-5 h-5 text-black/40" />
-                </div>
-                <h3 className="font-bold text-black text-sm mb-1">
-                  {opt.name}
-                </h3>
-                <p className="text-xs font-medium text-black/50 leading-relaxed">{opt.description}</p>
-              </button>
-            ))}
-        </div>
-      </div>
+      <OptionMenu
+        label="File"
+        value={selectedFormat}
+        options={exportOptions.map((option) => ({ value: option.id, label: option.name }))}
+        onChange={(value) => {
+          setSelectedFormat(value as ExportFormat);
+          setExported(false);
+          setValidationErrors([]);
+        }}
+        widthClass="w-56"
+      />
 
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
@@ -316,21 +239,18 @@ export default function ExportPage({
           </div>
 
           {selectedFormat === "835" && (
-            <div className="flex items-start gap-3 p-5 rounded-2xl bg-blue-50 border border-blue-100 shadow-sm">
-              <Shield className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-              <p className="text-sm font-medium text-blue-800/80 leading-relaxed">
-                <strong className="font-bold text-blue-900">Pre-export validation</strong> will verify: BPR total = Σ(CLP paid),
-                each CLP = Σ(SVC paid), and each SVC line balances as Billed −
-                Adjustments = Paid. If any number is off by even $0.01, export
-                will be blocked to ensure PMS compatibility.
-              </p>
+            <div className="rounded-2xl bg-[#b9cecf] p-4 text-sm leading-relaxed text-[#281a0d]">
+              Before the file downloads, the totals are checked: the payment
+              equals the sum of claims, and each line is billed minus
+              adjustments. If a number is off, the export stops and the reason
+              is shown here.
             </div>
           )}
 
           <Button
             onClick={handleExport}
             disabled={exporting}
-            className="w-full bg-black hover:bg-black/80 text-white rounded-xl py-7 font-bold text-lg shadow-xl shadow-black/10 transition-all border border-black group"
+            className="h-11 w-full rounded-xl bg-[#416c6f] text-[#f2efe9]"
           >
             {exporting ? (
               <Loader2 className="w-5 h-5 animate-spin mr-3" />

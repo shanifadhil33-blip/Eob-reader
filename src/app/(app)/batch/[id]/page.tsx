@@ -18,15 +18,14 @@ import {
   XCircle,
   Flag,
   Download,
-  ArrowLeft,
   FileText,
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 
 interface LineItem {
   id: string;
@@ -201,56 +200,30 @@ export default function BatchReviewPage({
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
+    return <p className="text-sm text-[#614f38]">Loading batch…</p>;
   }
 
   if (!batch) {
     return (
-      <div className="p-8 text-center bg-gray-50/50">
-        <FileText className="w-10 h-10 mx-auto text-black/20 mb-4" />
-        <p className="text-black/50 font-bold">Batch not found</p>
-        <Link href="/dashboard">
-          <Button variant="outline" className="mt-4 text-black border-black/10 hover:bg-gray-100">
-            Back to Dashboard
-          </Button>
-        </Link>
+      <div>
+        <BackLink href="/dashboard" />
+        <p className="mt-4 text-[#614f38]">That batch was not found.</p>
       </div>
     );
   }
 
   if (batch.eob_extractions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center px-4 bg-gray-50/30">
-        {batch.status === "processing" ? (
-          <>
-            <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-6" />
-            <h2 className="text-2xl font-bold text-black mb-2">Processing Batch...</h2>
-            <p className="text-black/50 text-base font-medium max-w-md mx-auto">
-              Our AI is currently extracting line items from your uploaded PDFs.
-              This may take a minute or two. You can wait here or check back later.
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="w-20 h-20 rounded-full bg-white border border-black/5 shadow-sm flex items-center justify-center mb-6 text-black/30">
-              <FileText className="w-10 h-10 text-black/20" />
-            </div>
-            <h2 className="text-2xl font-bold text-black mb-2">No Extractions Found</h2>
-            <p className="text-black/50 text-base font-medium max-w-md mx-auto">
-              This batch finished processing but no valid EOB line items could be extracted,
-              or the files were unreadable.
-            </p>
-          </>
-        )}
-        <Link href="/dashboard">
-          <Button variant="outline" className="mt-8 border-black/10 text-black hover:bg-black/5 font-bold shadow-sm rounded-xl">
-            Return to Dashboard
-          </Button>
-        </Link>
+      <div>
+        <BackLink href="/dashboard" />
+        <h2 className="font-display mt-4 text-3xl">
+          {batch.status === "processing" ? "Still reading" : "Nothing to review"}
+        </h2>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-[#614f38]">
+          {batch.status === "processing"
+            ? "The draft is still being written. You can leave and come back from the dashboard."
+            : "No text could be turned into a claim. A scanned PDF is skipped. Try a digital EOB that already has a text layer."}
+        </p>
       </div>
     );
   }
@@ -261,22 +234,15 @@ export default function BatchReviewPage({
   ).length;
 
   return (
-    <div className="space-y-6 bg-gray-50/50 pb-20">
-      {/* Top Bar Card */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 bg-white border border-black/5 rounded-3xl shadow-sm">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link href="/dashboard">
-            <Button variant="outline" size="icon" className="border-black/5 text-black hover:bg-gray-50 shadow-sm rounded-xl shrink-0">
-              <ArrowLeft className="w-4 h-4 text-black/60" />
-            </Button>
-          </Link>
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold text-black tracking-tight truncate max-w-[180px] sm:max-w-none" title={batch.name}>{batch.name}</h1>
-            <p className="text-xs sm:text-sm font-medium text-black/50">
-              <span className="font-bold text-black/70">{approvedCount}/{batch.eob_extractions.length}</span> approved •{" "}
+    <div className="space-y-6 pb-16">
+      <div className="flex flex-col gap-4 rounded-2xl bg-[#eee0c7] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="min-w-0">
+          <BackLink href="/dashboard" />
+          <h1 className="font-display mt-2 truncate text-2xl" title={batch.name}>{batch.name}</h1>
+            <p className="text-sm text-[#614f38]">
+              {approvedCount}/{batch.eob_extractions.length} approved ·{" "}
               {batch.eob_extractions.filter((e) => e.review_status === "pending").length} pending
             </p>
-          </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Dialog>
@@ -289,8 +255,8 @@ export default function BatchReviewPage({
                 />
               }
             >
-              <FileText className="w-5 h-5 sm:mr-2 text-blue-600" />
-              <span className="hidden sm:inline">View PDF</span>
+              <FileText className="mr-2 size-4 text-[#416c6f]" />
+              PDF
             </DialogTrigger>
             <DialogContent className="max-w-7xl w-[95vw] h-[90vh] p-0 overflow-hidden bg-white border-black/10 flex flex-col rounded-3xl shadow-2xl">
               <DialogHeader className="p-5 border-b border-black/5 bg-gray-50/50 shrink-0 flex flex-row items-center justify-between pointer-events-none">
@@ -298,19 +264,7 @@ export default function BatchReviewPage({
                   <FileText className="w-5 h-5 text-blue-600" />
                   {currentEob?.pdf_storage_path.split("/").pop()}
                 </DialogTitle>
-                <div className="flex items-center gap-2 pr-8 pointer-events-auto">
-                  {pdfUrl && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => window.open(pdfUrl, '_blank')}
-                      className="border-black/10 text-black hover:bg-white shadow-sm font-bold rounded-lg"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Open Full Screen
-                    </Button>
-                  )}
-                </div>
+                <span className="sr-only">PDF</span>
               </DialogHeader>
               <div className="flex-1 relative w-full h-full bg-gray-100">
                 {pdfUrl ? (
@@ -333,10 +287,10 @@ export default function BatchReviewPage({
             <Button
               variant="default"
               size="default"
-              className="bg-black text-white hover:bg-black/80 font-bold shadow-md rounded-xl px-3 sm:px-4"
+              className="rounded-xl bg-[#416c6f] px-4 text-[#f2efe9]"
             >
-              <Download className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Export Batch</span>
+              <Download className="mr-2 size-4" />
+              Export
             </Button>
           </Link>
         </div>
@@ -352,9 +306,9 @@ export default function BatchReviewPage({
           onClick={() => setCurrentEobIndex((prev) => prev - 1)}
         >
           <ChevronLeft className="w-4 h-4 sm:mr-1" />
-          <span className="hidden sm:inline">Previous</span>
+          Previous
         </Button>
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto px-2">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 px-2">
           {batch.eob_extractions.map((eob, i) => (
             <button
               key={eob.id}
@@ -386,7 +340,7 @@ export default function BatchReviewPage({
           disabled={currentEobIndex === batch.eob_extractions.length - 1}
           onClick={() => setCurrentEobIndex((prev) => prev + 1)}
         >
-          <span className="hidden sm:inline">Next</span>
+          Next
           <ChevronRight className="w-4 h-4 sm:ml-1" />
         </Button>
       </div>
@@ -511,87 +465,24 @@ export default function BatchReviewPage({
             </Card>
 
             {/* Extracted Line Items Section */}
-            <h2 className="text-xl font-bold text-black mt-8 pt-4">Extracted Line Items</h2>
-
-            {/* Line Items Table */}
-            <div className="bg-white rounded-3xl border border-black/5 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm whitespace-nowrap">
-                  <thead>
-                    <tr className="bg-gray-50/80 border-b border-black/5 text-black/50">
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Code</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Description</th>
-                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Billed</th>
-                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Allowed</th>
-                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-emerald-600/70">Paid</th>
-                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-amber-600/70">Patient</th>
-                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">Adj</th>
-                      <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Conf</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-black/5">
-                    {currentEob.eob_line_items.map((item, i) => (
-                      <tr
-                        key={item.id || i}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-5">
-                          <span className="text-blue-600 font-mono font-bold bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
-                            {item.procedure_code || "—"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-black/70 font-medium max-w-[200px] truncate" title={item.procedure_description || ""}>
-                          {item.procedure_description || "—"}
-                        </td>
-                        <td className="px-6 py-5 text-right text-black font-mono font-medium">
-                          ${item.billed_amount?.toFixed(2) || "0.00"}
-                        </td>
-                        <td className="px-6 py-5 text-right text-black font-mono font-medium">
-                          ${item.allowed_amount?.toFixed(2) || "0.00"}
-                        </td>
-                        <td className="px-6 py-5 text-right text-emerald-600 font-mono font-bold">
-                          ${item.insurance_paid?.toFixed(2) || "0.00"}
-                        </td>
-                        <td className="px-6 py-5 text-right text-amber-600 font-mono font-bold">
-                          ${item.patient_responsibility?.toFixed(2) || "0.00"}
-                        </td>
-                        <td className="px-6 py-5 text-right text-black/40 font-mono text-xs font-semibold">
-                          {item.adjustment_code || "—"}
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <ConfidenceBadge score={item.confidence_score} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-50 border-t border-black/5 shadow-inner">
-                      <td colSpan={2} className="px-6 py-5 text-black/40 font-bold uppercase tracking-widest text-xs">
-                        Totals
-                      </td>
-                      <td className="px-6 py-5 text-right text-black font-mono font-bold">
-                        ${currentEob.total_billed?.toFixed(2) || "0.00"}
-                      </td>
-                      <td className="px-6 py-5 text-right text-black font-mono font-bold">
-                        ${currentEob.total_allowed?.toFixed(2) || "0.00"}
-                      </td>
-                      <td className="px-6 py-5 text-right text-emerald-600 font-mono font-black text-base">
-                        ${currentEob.total_insurance_paid?.toFixed(2) || "0.00"}
-                      </td>
-                      <td className="px-6 py-5 text-right text-amber-600 font-mono font-black border-r border-black/5 text-base">
-                        ${currentEob.total_patient_responsibility?.toFixed(2) || "0.00"}
-                      </td>
-                      <td className="px-6 py-5 text-right text-black/40 font-mono font-bold">
-                        ${currentEob.total_adjustments?.toFixed(2) || "0.00"}
-                      </td>
-                      <td className="px-6 py-5 text-center">
-                        <ConfidenceBadge score={currentEob.confidence_score} />
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
+            <h2 className="font-display text-2xl">Line items</h2>
+            <ul className="space-y-2">
+              {currentEob.eob_line_items.map((item, i) => (
+                <li key={item.id || i} className="rounded-2xl bg-[#eee0c7] p-4 text-sm">
+                  <p className="font-medium">
+                    {item.procedure_code || "—"} · {item.procedure_description || "No description"}
+                  </p>
+                  <p className="mt-1 text-[#614f38]">
+                    Billed ${item.billed_amount?.toFixed(2) || "0.00"} · Allowed ${item.allowed_amount?.toFixed(2) || "0.00"} · Paid ${item.insurance_paid?.toFixed(2) || "0.00"} · Patient ${item.patient_responsibility?.toFixed(2) || "0.00"}
+                    {item.tooth_number ? ` · Tooth ${item.tooth_number}` : ""}
+                    {item.adjustment_code ? ` · ${item.adjustment_code}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm text-[#614f38]">
+              Totals: billed ${currentEob.total_billed?.toFixed(2) || "0.00"} · paid ${currentEob.total_insurance_paid?.toFixed(2) || "0.00"} · patient ${currentEob.total_patient_responsibility?.toFixed(2) || "0.00"}
+            </p>
           </div>
         )}
       </div>

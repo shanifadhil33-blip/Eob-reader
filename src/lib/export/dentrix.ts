@@ -3,8 +3,9 @@ import { EOBExtractionRecord } from "../extraction/types";
 // Format date for Dentrix (MM/DD/YYYY)
 function formatDateDentrix(dateStr: string | null): string {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
-  return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (match) return `${match[2]}/${match[3]}/${match[1]}`;
+  return dateStr;
 }
 
 export function generateDentrixCSV(extractions: EOBExtractionRecord[]): string {

@@ -80,15 +80,7 @@ export interface Practice {
   name: string;
   email: string;
   auth_id: string;
-  subscription_status: "trial" | "pro" | "canceled" | "expired";
-  trial_start_date: string;
-  trial_end_date: string;
-  polar_customer_id: string | null;
-  polar_subscription_id: string | null;
-  current_period_end: string | null;
   default_pms: "dentrix" | "eaglesoft" | "open_dental";
-  daily_upload_count: number;
-  daily_upload_reset_date: string;
   created_at: string;
   updated_at: string;
 }

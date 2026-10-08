@@ -11,8 +11,9 @@ export default function TermsOfServicePage() {
   return (
     <LegalPage title="Terms">
       <p>
-        EOB Reader is a personal portfolio and learning project. By using it you
-        agree to these terms. If you do not agree, do not use it.
+        EOB Reader is a personal portfolio and learning project. It is not for
+        sale. By using it you agree to these terms. If you do not agree, do not
+        use it.
       </p>
       <h2>What you are using</h2>
       <ul>
@@ -21,9 +22,12 @@ export default function TermsOfServicePage() {
           you review them, and downloads an X12 835 file or a CSV.
         </li>
         <li>
+          A public demo with fictional patients. The demo does not create an
+          account and does not save anything.
+        </li>
+        <li>
           Not a HIPAA service, not a clearinghouse, and not advice about
-          billing, dentistry, or the law. It does not post payments into a
-          practice-management system for you.
+          billing, dentistry, or the law.
         </li>
         <li>
           The draft can be wrong. Review is required before export. The 835
@@ -33,9 +37,9 @@ export default function TermsOfServicePage() {
       </ul>
       <h2>Your account</h2>
       <p>
-        Sign-in is an email code or Google. The signup screen describes a
-        14-day trial. Paid checkout, if you use it, is Polar at the price shown
-        on the billing screen. You are responsible for the account you create.
+        Sign-in is Google. There is no paid plan. You are responsible for the
+        account you create and for keeping real patient information off this
+        site.
       </p>
       <h2>Acceptable use</h2>
       <ul>
@@ -46,7 +50,7 @@ export default function TermsOfServicePage() {
       <h2>No warranty</h2>
       <p>
         The project is provided as-is. It can be wrong, incomplete, or offline.
-        There is no support desk and no service-level promise. Questions go to{" "}
+        Questions go to{" "}
         <a href="mailto:shanifadhil33@gmail.com">shanifadhil33@gmail.com</a>.
       </p>
     </LegalPage>
