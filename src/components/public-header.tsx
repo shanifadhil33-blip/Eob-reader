@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { SignInButton } from "@/components/sign-in-button";
+import { useCloseOnEscape } from "@/components/use-close-on-escape";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 const links = [
@@ -14,6 +15,8 @@ const links = [
 export function PublicHeader() {
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  useCloseOnEscape(open, close);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
