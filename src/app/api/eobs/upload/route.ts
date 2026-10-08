@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extractEOBFromText } from "@/lib/extraction/openrouter";
+import type { EOBLineItem } from "@/lib/extraction/types";
 
 export async function POST(request: Request) {
   try {
@@ -237,7 +238,7 @@ export async function POST(request: Request) {
 
           // Store line items
           if (extraction.line_items && extraction.line_items.length > 0) {
-            const lineItems = extraction.line_items.map((item: any) => ({
+            const lineItems = extraction.line_items.map((item: EOBLineItem) => ({
               eob_extraction_id: eobRecord.id,
               procedure_code: item.procedure_code,
               procedure_description: item.procedure_description,
@@ -268,8 +269,10 @@ export async function POST(request: Request) {
           }
 
           processedCount++;
-        } catch (fileError: any) {
-          fileErrors.push(`${file.name}: ${fileError.message || "processing failed"}`);
+        } catch (fileError: unknown) {
+          const message =
+            fileError instanceof Error ? fileError.message : "processing failed";
+          fileErrors.push(`${file.name}: ${message}`);
           // Don't rethrow — allow other files to continue and batch status to update
         }
       }));

@@ -25,6 +25,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+function daysUntil(isoDate: string): number {
+  return Math.max(
+    0,
+    Math.ceil((new Date(isoDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  );
+}
+
 interface PracticeData {
   id: string;
   name: string | null;
@@ -43,19 +50,6 @@ export default function BillingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    fetchPractice();
-  }, []);
-
-  // Handle upgrade success redirect
-  useEffect(() => {
-    if (searchParams.get("upgraded") === "true") {
-      toast.success("Welcome to Pro! Your account has been upgraded.");
-      setTimeout(() => fetchPractice(), 1500);
-      router.replace("/billing");
-    }
-  }, [searchParams]);
-
   async function fetchPractice() {
     const {
       data: { user },
@@ -63,7 +57,7 @@ export default function BillingPage() {
 
     if (!user) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("practices")
       .select("*")
       .eq("auth_id", user.id)
@@ -74,6 +68,21 @@ export default function BillingPage() {
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    // Load the practice once when the billing screen opens.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchPractice();
+  }, []);
+
+  // Handle upgrade success redirect
+  useEffect(() => {
+    if (searchParams.get("upgraded") === "true") {
+      toast.success("Welcome to Pro! Your account has been upgraded.");
+      setTimeout(() => fetchPractice(), 1500);
+      router.replace("/billing");
+    }
+  }, [searchParams]);
 
   async function handleUpgrade() {
     setUpgrading(true);
@@ -95,15 +104,7 @@ export default function BillingPage() {
     }
   }
 
-  const trialDaysRemaining = practice
-    ? Math.max(
-        0,
-        Math.ceil(
-          (new Date(practice.trial_end_date).getTime() - Date.now()) /
-            (1000 * 60 * 60 * 24)
-        )
-      )
-    : 0;
+  const trialDaysRemaining = practice ? daysUntil(practice.trial_end_date) : 0;
 
   if (loading) {
     return (
@@ -246,9 +247,9 @@ export default function BillingPage() {
                 <Shield className="w-6 h-6 text-emerald-500" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-black">HIPAA-Compliant Billing</h4>
+                <h4 className="text-base font-bold text-black">Payments</h4>
                 <p className="text-sm text-black/50 font-medium mt-1 leading-relaxed">
-                  We process payments securely through Polar.sh. No health information or patient records are ever processed, tracked, or stored by payment systems.
+                  Checkout and invoices go through Polar. The EOB PDF is not sent to Polar. This project is not a HIPAA billing service.
                 </p>
               </div>
             </CardContent>
@@ -274,16 +275,16 @@ export default function BillingPage() {
                   desc: "Process as many EOBs as your dental practice receives without daily caps.",
                 },
                 {
-                  title: "Batch Extraction",
-                  desc: "Drag & drop up to 200 PDFs at once and extract them simultaneously in seconds.",
+                  title: "Batch upload",
+                  desc: "Upload up to 200 text-based PDFs in one batch. Each file is drafted from its text layer, then waits for review.",
                 },
                 {
-                  title: "Export to PMS",
-                  desc: "Download clean CSV/Excel templates formatted specifically for Dentrix, Eaglesoft, and Open Dental.",
+                  title: "Export",
+                  desc: "Download an X12 835 file or a CSV shaped for Dentrix, Eaglesoft, or Open Dental.",
                 },
                 {
-                  title: "Priority Support",
-                  desc: "Get direct support from engineers for any complex or non-standard payer formats.",
+                  title: "Questions",
+                  desc: "Email shanifadhil33@gmail.com. This is a portfolio project, not a staffed support desk.",
                 },
               ].map((feat, idx) => (
                 <div key={idx} className="flex items-start gap-3">

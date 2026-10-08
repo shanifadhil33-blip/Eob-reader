@@ -22,13 +22,13 @@ export default function LandingPage() {
       <LandingHeader />
 
       {/* Hero Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-32 sm:pt-40 pb-16 sm:pb-24">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-44 sm:pt-52 pb-16 sm:pb-24">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-4xl sm:text-6xl md:text-8xl font-black tracking-[-0.04em] leading-[1.05] mb-8 text-black">
             Transform your EOBs into data
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl text-black/50 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
-            EOB Reader takes your PDFs, reads every line item, and outputs perfectly balanced CSVs for your PMS. No manual data entry required.
+            EOB Reader reads text-based dental EOB PDFs, drafts the line items, and lets you review them before you export a CSV or an X12 835 file.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/signup">
@@ -114,29 +114,29 @@ export default function LandingPage() {
           Automate the tedious parts.
         </h2>
         <p className="text-black/50 text-center mb-12 sm:mb-20 text-lg sm:text-xl font-medium max-w-2xl mx-auto">
-          Four simple steps to process hundreds of pages in under a minute. Our AI is designed specifically for US dental practices.
+          Four steps for US dental EOBs. The model drafts the line items. You review them before anything is exported.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           {[
             {
               icon: Upload,
               title: "Upload",
-              desc: "Drag & drop up to 200 EOB PDFs at once.",
+              desc: "Drag and drop text-based EOB PDFs, up to 200 at a time. Scans with no text layer are skipped.",
             },
             {
               icon: Zap,
               title: "Extract",
-              desc: "Our engine reliably parses line items instantly.",
+              desc: "A text model drafts the line items from the PDF text. It is a draft, not a finished posting.",
             },
             {
               icon: CheckCircle,
               title: "Review",
-              desc: "Approve extraction perfectly aligned beside the PDF.",
+              desc: "Check each draft against the PDF, then approve, flag, or reject it. This step is the point.",
             },
             {
               icon: Download,
               title: "Export",
-              desc: "Download a PMS-ready CSV for Dentrix or Eaglesoft.",
+              desc: "Download an X12 835 file, or a CSV for Dentrix, Eaglesoft, or Open Dental.",
             },
           ].map((step, i) => (
             <div
@@ -166,10 +166,10 @@ export default function LandingPage() {
           <div className="absolute top-[-50%] left-[-20%] w-[70%] h-[150%] bg-gradient-to-br from-white/10 to-transparent blur-3xl rounded-full pointer-events-none" />
           <Shield className="w-12 h-12 sm:w-20 sm:h-20 text-white/80 mx-auto mb-6 sm:mb-8 stroke-[1.5]" />
           <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight">
-            Designed for HIPAA Compliance.
+            A portfolio project, not a HIPAA product.
           </h2>
           <p className="text-white/60 max-w-2xl mx-auto text-base sm:text-xl font-medium leading-relaxed">
-            No payer portal logins needed. Your PDFs are encrypted at rest, auto-deleted after 90 days, and never used to train third-party AI models. Ultimate privacy, guaranteed.
+            Files sit in a private bucket for your account. Nothing is auto-deleted, there is no audit log, and there is no business associate agreement. Use fictional data only.
           </p>
         </div>
       </section>
@@ -185,7 +185,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm font-medium text-black/40">
               <Link href="/privacy" className="hover:text-black transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-black transition-colors">Terms of Service</Link>
-              <Link href="/hipaa" className="hover:text-black transition-colors">HIPAA Compliance</Link>
+              <Link href="/hipaa" className="hover:text-black transition-colors">Data handling</Link>
             </div>
           </div>
           <p className="text-black/30 text-sm font-medium">

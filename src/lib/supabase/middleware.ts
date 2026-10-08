@@ -44,6 +44,9 @@ export async function updateSession(request: NextRequest) {
     "/",
     "/login",
     "/signup",
+    "/privacy",
+    "/terms",
+    "/hipaa",
     "/auth/callback",
     "/api/keep-alive",
   ];

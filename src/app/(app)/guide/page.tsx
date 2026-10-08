@@ -183,8 +183,8 @@ export default function GuidePage() {
               <p className="text-sm font-medium text-black/60 leading-relaxed">
                 EOB Reader exports your verified payment data as industry-standard{" "}
                 <span className="text-blue-600 font-bold">ANSI X12 835 ERA</span>{" "}
-                files — the same format used by clearinghouses. Your PMS reads
-                these files and automatically posts payments, eliminating manual data entry.
+                files — the same format used by clearinghouses. Your PMS can import
+                these files. You still review the draft here, and you still confirm the posting in the PMS.
               </p>
             </div>
           </div>
@@ -341,7 +341,7 @@ export default function GuidePage() {
             },
             {
               q: "Can I import a CSV file instead?",
-              a: "No — dental PMS software (Dentrix, Eaglesoft, Open Dental) requires the standardized .835 format, not CSV. EOB Reader handles this conversion for you automatically when you click Export.",
+              a: "The main export is an ANSI X12 835 file (.835). You can also download a CSV shaped for Dentrix, Eaglesoft, or Open Dental. The CSV is a fallback, and it is not the same as an ERA import.",
             },
             {
               q: "Do I need to approve all EOBs before exporting?",

@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "EOB Reader",
-  description: "AI-powered Explanation of Benefits (EOB) payment posting for dental practices.",
+  description:
+    "Portfolio project that reads dental EOB PDFs, lets you review the draft, and exports an X12 835 or a PMS CSV. Not for real patient information.",
 };
 
 export default function RootLayout({

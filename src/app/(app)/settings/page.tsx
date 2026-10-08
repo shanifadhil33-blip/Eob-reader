@@ -51,7 +51,9 @@ export default function SettingsPage() {
   // Feedback state
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
-  const [pastFeedback, setPastFeedback] = useState<any[]>([]);
+  const [pastFeedback, setPastFeedback] = useState<
+    { id: string; created_at: string; message: string }[]
+  >([]);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   useEffect(() => {
@@ -107,8 +109,29 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/feedback");
       if (res.ok) {
-        const data = await res.json();
-        setPastFeedback(data);
+        const data: unknown = await res.json();
+        if (Array.isArray(data)) {
+          setPastFeedback(
+            data.flatMap((row) => {
+              if (typeof row !== "object" || row === null) return [];
+              const item = row as Record<string, unknown>;
+              if (
+                typeof item.id !== "string" ||
+                typeof item.created_at !== "string" ||
+                typeof item.message !== "string"
+              ) {
+                return [];
+              }
+              return [
+                {
+                  id: item.id,
+                  created_at: item.created_at,
+                  message: item.message,
+                },
+              ];
+            })
+          );
+        }
       }
     } catch {
       // Feedback table might not exist yet — that's okay
@@ -266,10 +289,10 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-4 text-sm font-medium text-black/60 leading-relaxed">
-          <p className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500" /> All PDFs are encrypted at rest in secure storage</p>
-          <p className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500" /> PDFs are auto-deleted after 90 days</p>
-          <p className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500" /> Your data is never used to train AI models</p>
-          <p className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500" /> Row-Level Security ensures practice data isolation</p>
+          <p>PDFs are stored in a private bucket for your account. Row-level security limits each account to its own rows.</p>
+          <p>Nothing is deleted on a schedule. Delete a batch when you want that extraction gone. A skipped scan can remain in storage.</p>
+          <p>The PDF text is sent to OpenRouter for the draft, or to a local model if that is configured. Do not upload real patient information.</p>
+          <p>This is a portfolio project. It is not a HIPAA product and it does not keep an audit log.</p>
         </CardContent>
       </Card>
 

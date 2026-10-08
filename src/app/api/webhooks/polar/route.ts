@@ -1,11 +1,16 @@
 import { Webhooks } from "@polar-sh/nextjs";
 import { createClient } from "@supabase/supabase-js";
 
-// Use service role client to bypass RLS for webhook updates
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Service role client bypasses RLS for webhook updates.
+// Created on use so a build without env vars can still load this module.
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("Supabase service role is not configured");
+  }
+  return createClient(url, key);
+}
 
 export const POST = Webhooks({
   webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
@@ -21,6 +26,7 @@ export const POST = Webhooks({
         }
 
         // Find the practice by email
+        const supabase = getSupabase();
         const { data: practice, error: findError } = await supabase
           .from("practices")
           .select("id")
@@ -50,6 +56,7 @@ export const POST = Webhooks({
       }
 
       case "subscription.updated": {
+        const supabase = getSupabase();
         const sub = payload.data;
         const subId = sub.id;
 
@@ -126,6 +133,7 @@ export const POST = Webhooks({
 
         if (!customerEmail) break;
 
+        const supabase = getSupabase();
         const { data: practice } = await supabase
           .from("practices")
           .select("id")
