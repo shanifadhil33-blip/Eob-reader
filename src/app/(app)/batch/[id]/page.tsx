@@ -194,8 +194,8 @@ export default function BatchReviewPage({
 
       const successCopy = {
         approve: "EOB approved",
-        reject: "EOB rejected",
-        flag: "EOB flagged",
+        reject: "EOB rejected successfully",
+        flag: "EOB flagged successfully",
       } as const;
       toast.success(successCopy[action]);
     } catch {
