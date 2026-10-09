@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { BackLink } from "@/components/back-link";
@@ -22,7 +23,9 @@ const pmsOptions = [
 export default function SettingsPage() {
   const [practice, setPractice] = useState<PracticeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [name, setName] = useState("");
   const [defaultPms, setDefaultPms] = useState("dentrix");
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -31,24 +34,32 @@ export default function SettingsPage() {
   useEffect(() => {
     const supabase = createClient();
     async function fetchPractice() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      const { data } = await supabase
-        .from("practices")
-        .select("id, name, email, default_pms")
-        .eq("auth_id", user.id)
-        .single();
-      if (data) {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          setLoadError(true);
+          return;
+        }
+        const { data } = await supabase
+          .from("practices")
+          .select("id, name, email, default_pms")
+          .eq("auth_id", user.id)
+          .single();
+        if (!data) {
+          setLoadError(true);
+          return;
+        }
         setPractice(data);
         setName(data.name || "");
         setDefaultPms(data.default_pms || "dentrix");
+        setLoadError(false);
+      } catch {
+        setLoadError(true);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     void fetchPractice();
   }, []);
@@ -66,8 +77,13 @@ export default function SettingsPage() {
       })
       .eq("id", practice.id);
     setSaving(false);
-    if (error) toast.error("Could not save settings.");
-    else toast.success("Saved.");
+    if (error) {
+      toast.error("Could not save settings.");
+      return;
+    }
+    setPractice({ ...practice, name, default_pms: defaultPms });
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2000);
   }
 
   async function submitFeedback() {
@@ -90,12 +106,38 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-[#614f38]">Loading settings…</p>;
+    return (
+      <div className="max-w-2xl space-y-4" aria-busy="true" aria-label="Loading settings">
+        <div className="h-4 w-28 rounded bg-[#d1b996]" />
+        <div className="h-10 w-48 rounded bg-[#d1b996]" />
+        <div className="h-40 rounded-2xl bg-[#eee0c7]" />
+      </div>
+    );
   }
+
+  if (loadError || !practice) {
+    return (
+      <div className="max-w-2xl">
+        <BackLink href="/dashboard" label="Dashboard" />
+        <h1 className="font-display mt-3 text-4xl">Could not load settings</h1>
+        <p className="mt-2 text-sm text-[#614f38]">Your account is unchanged.</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-4 inline-flex h-11 items-center rounded-xl bg-[#416c6f] px-4 text-sm font-medium text-[#f2efe9]"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  const dirty =
+    name !== (practice.name || "") || defaultPms !== (practice.default_pms || "dentrix");
 
   return (
     <div className="max-w-2xl space-y-8">
-      <BackLink href="/dashboard" />
+      <BackLink href="/dashboard" label="Dashboard" />
       <div>
         <h1 className="font-display text-4xl">Settings</h1>
         <p className="mt-2 text-[#614f38]">Practice name and the CSV you prefer.</p>
@@ -121,10 +163,11 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving}
-          className="h-11 rounded-xl bg-[#416c6f] px-4 text-sm font-medium text-[#f2efe9] disabled:opacity-70"
+          disabled={saving || !dirty}
+          className="inline-flex h-11 min-w-28 items-center justify-center gap-2 rounded-xl bg-[#416c6f] px-4 text-sm font-medium text-[#f2efe9] disabled:opacity-70"
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+          {saving ? "Saving…" : saved && !dirty ? "Saved" : "Save"}
         </button>
       </section>
 
@@ -137,6 +180,8 @@ export default function SettingsPage() {
 
       <section className="space-y-3 rounded-2xl bg-[#eee0c7] p-5">
         <h2 className="font-display text-2xl">A note for Adhil</h2>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-[#614f38]">Note</span>
         <textarea
           value={feedbackMessage}
           onChange={(event) => setFeedbackMessage(event.target.value)}
@@ -144,6 +189,7 @@ export default function SettingsPage() {
           placeholder="What should the next version do?"
           className="w-full rounded-xl border border-[#d1b996] bg-[#f2efe9] p-3 text-sm"
         />
+        </label>
         <button
           type="button"
           onClick={submitFeedback}

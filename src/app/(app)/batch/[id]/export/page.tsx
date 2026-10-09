@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, use } from "react";
+import { Suspense, useEffect, useState, use } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +23,8 @@ import {
 import { toast } from "sonner";
 import { BackLink } from "@/components/back-link";
 import { OptionMenu } from "@/components/option-menu";
+import { carryQuery } from "@/lib/return-to";
+import { createClient } from "@/lib/supabase/client";
 
 type ExportFormat = "835" | "dentrix" | "eaglesoft" | "open_dental";
 
@@ -70,22 +73,54 @@ interface ValidationError {
   procedureCode?: string;
 }
 
-export default function ExportPage({
+const plainExportErrors = new Set([
+  "No approved EOBs found in this batch",
+  "Couldn't export. Try again.",
+  "Couldn't build the 835 file. Try again.",
+]);
+
+const csvLabels: Record<string, string> = {
+  dentrix: "Dentrix",
+  eaglesoft: "Eaglesoft",
+  open_dental: "Open Dental",
+};
+
+function ExportPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const carried = carryQuery(searchParams.get("from"), searchParams.get("back"));
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>("835");
+  const [preferredCsv, setPreferredCsv] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  const [validationReport, setValidationReport] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (!data.user) return;
+        const { data: practice } = await supabase
+          .from("practices")
+          .select("default_pms")
+          .eq("auth_id", data.user.id)
+          .single();
+        const label = practice?.default_pms ? csvLabels[practice.default_pms] : undefined;
+        if (label) setPreferredCsv(label);
+      } catch {
+        // The export still works if the saved CSV preference cannot be read.
+      }
+    })();
+  }, []);
 
   async function handleExport() {
     setExporting(true);
     setValidationErrors([]);
-    setValidationReport(null);
 
     try {
       const res = await fetch(`/api/export/${id}`, {
@@ -98,8 +133,6 @@ export default function ExportPage({
       if (res.status === 422) {
         const data = await res.json();
         setValidationErrors(data.validationErrors || []);
-        setValidationReport(data.validationReport || null);
-        toast.error("Export blocked: fix balancing errors first");
         setExporting(false);
         return;
       }
@@ -129,8 +162,8 @@ export default function ExportPage({
         selectedFormat === "835" ? "835 file downloaded." : "CSV downloaded."
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Export failed";
-      toast.error(message);
+      const message = error instanceof Error ? error.message : "";
+      toast.error(plainExportErrors.has(message) ? message : "Couldn't export. Try again.");
     } finally {
       setExporting(false);
     }
@@ -140,12 +173,13 @@ export default function ExportPage({
 
   return (
     <div className="max-w-3xl space-y-6">
-      <BackLink href={`/batch/${id}`} />
+      <BackLink href={`/batch/${id}${carried}`} label="Review" />
       <div>
         <h1 className="font-display text-4xl">Export</h1>
         <p className="mt-2 text-sm text-[#614f38]">
           Approved claims only. An 835 can add CO-45 or OA-23 so the file balances.
           These layouts are a starting point, not a promise that a practice-management system will post them.
+          {preferredCsv ? ` Settings lists ${preferredCsv} as your default CSV.` : ""}
         </p>
       </div>
       <OptionMenu
@@ -169,9 +203,9 @@ export default function ExportPage({
               Export Blocked — Balancing Errors
             </CardTitle>
             <CardDescription className="text-red-600/80 text-sm font-medium mt-1">
-              The following mathematical discrepancies must be fixed before the
-              835 can be generated. Go back to the review screen and correct the
-              flagged values.
+              The totals do not balance, so the file was not downloaded. This
+              screen cannot edit the draft. Go back and reject the claim if the
+              numbers look wrong.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-6 p-6">
@@ -249,12 +283,18 @@ export default function ExportPage({
             ) : (
               <Download className="w-5 h-5 mr-3 text-white/70 group-hover:text-white transition-colors" />
             )}
-            {exporting
-              ? "Validating & Generating..."
-              : `Export ${selectedOption.name}`}
+            {exporting ? "Preparing the file…" : `Export ${selectedOption.name}`}
           </Button>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ExportRoute(props: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<div className="h-40 rounded-2xl bg-[#eee0c7]" aria-busy="true" />}>
+      <ExportPage {...props} />
+    </Suspense>
   );
 }

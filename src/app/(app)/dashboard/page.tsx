@@ -303,6 +303,7 @@ export default function DashboardPage() {
         open={pendingDelete !== null}
         title="Delete this batch?"
         body="The batch and its extracted rows are removed. This cannot be undone."
+        destructive
         confirmLabel="Delete"
         busyLabel="Deleting…"
         busy={deleting}

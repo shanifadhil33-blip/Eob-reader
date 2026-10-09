@@ -9,6 +9,7 @@ import { BackLink } from "@/components/back-link";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { OptionMenu } from "@/components/option-menu";
 import { formatBatchTitle } from "@/lib/format-batch";
+import { sortOrderedItems } from "@/lib/list-order";
 
 interface HistoryBatch {
   id: string;
@@ -48,29 +49,14 @@ const statusOptions = [
   { value: "rejected", label: "Rejected" },
 ];
 
-function sortItems(items: EOBHistoryItem[], sort: string) {
-  const copy = [...items];
-  copy.sort((a, b) => {
-    const nameA = a.patient_name || "";
-    const nameB = b.patient_name || "";
-    if (sort === "oldest") return a.created_at.localeCompare(b.created_at) || nameA.localeCompare(nameB);
-    if (sort === "name") return nameA.localeCompare(nameB) || a.created_at.localeCompare(b.created_at);
-    if (sort === "amount") {
-      return (b.check_amount || 0) - (a.check_amount || 0) || nameA.localeCompare(nameB);
-    }
-    return b.created_at.localeCompare(a.created_at) || nameA.localeCompare(nameB);
-  });
-  return copy;
-}
-
 function HistoryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sort = searchParams.get("sort") || "newest";
   const status = searchParams.get("status") || "all";
   const query = searchParams.get("q") || "";
-  const [eobs, setEobs] = useState<EOBHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [eobs, setEobs] = useState<EOBHistoryItem[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<EOBHistoryItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -78,12 +64,13 @@ function HistoryPage() {
     async function loadHistory() {
       try {
         const res = await fetch("/api/eobs/history");
-        if (res.ok) {
-          const data: unknown = await res.json();
-          if (Array.isArray(data)) setEobs(data as EOBHistoryItem[]);
-        }
-      } finally {
-        setLoading(false);
+        if (!res.ok) throw new Error("load");
+        const data: unknown = await res.json();
+        if (!Array.isArray(data)) throw new Error("load");
+        setEobs(data as EOBHistoryItem[]);
+        setLoadError(false);
+      } catch {
+        setLoadError(true);
       }
     }
     void loadHistory();
@@ -96,7 +83,7 @@ function HistoryPage() {
   }
 
   const filtered = useMemo(() => {
-    let items = eobs;
+    let items = eobs ?? [];
     if (status !== "all") items = items.filter((item) => item.review_status === status);
     if (query.trim()) {
       const needle = query.toLowerCase();
@@ -106,7 +93,7 @@ function HistoryPage() {
           .some((value) => value!.toLowerCase().includes(needle))
       );
     }
-    return sortItems(items, sort);
+    return sortOrderedItems(items, sort);
   }, [eobs, status, query, sort]);
 
   async function confirmDelete() {
@@ -115,7 +102,7 @@ function HistoryPage() {
     try {
       const res = await fetch(`/api/eobs/${pendingDelete.id}/delete`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
-      setEobs((prev) => prev.filter((item) => item.id !== pendingDelete.id));
+      setEobs((prev) => prev?.filter((item) => item.id !== pendingDelete.id) ?? prev);
       setPendingDelete(null);
     } catch {
       toast.error("Could not delete that EOB.");
@@ -126,7 +113,7 @@ function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <BackLink href="/dashboard" />
+      <BackLink href="/dashboard" label="Dashboard" />
       <div>
         <h1 className="font-display text-4xl">History</h1>
         <p className="mt-2 text-[#614f38]">Every extraction on this account.</p>
@@ -146,6 +133,7 @@ function HistoryPage() {
           value={sortOptions.some((option) => option.value === sort) ? sort : "newest"}
           options={sortOptions}
           onChange={(value) => replaceParams({ sort: value })}
+          widthClass="w-56"
         />
         <OptionMenu
           label="Status"
@@ -154,9 +142,27 @@ function HistoryPage() {
           onChange={(value) => replaceParams({ status: value })}
         />
       </div>
+      {eobs === null && !loadError ? (
+        <div className="space-y-3 rounded-2xl bg-[#eee0c7] p-4" aria-busy="true" aria-label="Loading history">
+          <div className="h-4 w-40 rounded bg-[#d1b996]" />
+          <div className="h-4 w-64 rounded bg-[#d1b996]" />
+          <div className="h-4 w-52 rounded bg-[#d1b996]" />
+        </div>
+      ) : loadError && eobs === null ? (
+        <div className="rounded-2xl bg-[#eee0c7] p-4">
+          <p className="text-sm text-[#8c3a2f]">Could not load history.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-3 inline-flex h-11 items-center rounded-xl bg-[#416c6f] px-4 text-sm font-medium text-[#f2efe9]"
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
       <p className="text-sm text-[#614f38]">
-        {loading
-          ? "Loading…"
+        {eobs?.length === 0
+          ? "No extractions yet. They show up here after you upload from the dashboard."
           : filtered.length === 0
             ? "Nothing matches."
             : `${filtered.length} shown: ${filtered
@@ -164,11 +170,21 @@ function HistoryPage() {
                 .slice(0, 8)
                 .join(", ")}`}
       </p>
-      {!loading && filtered.length > 0 ? (
+      )}
+      {eobs !== null && eobs.length > 0 && filtered.length === 0 ? (
+        <button
+          type="button"
+          onClick={() => replaceParams({ status: "all", q: "" })}
+          className="inline-flex h-11 items-center rounded-xl bg-[#416c6f] px-4 text-sm font-medium text-[#f2efe9]"
+        >
+          Clear filters
+        </button>
+      ) : null}
+      {eobs !== null && filtered.length > 0 ? (
         <ul className="divide-y divide-[#d1b996] rounded-2xl bg-[#eee0c7]">
           {filtered.map((item) => (
             <li key={item.id} className="flex items-center gap-3 px-4 py-3">
-              <Link href={`/batch/${item.batch_id}`} className="min-w-0 flex-1">
+              <Link href={`/batch/${item.batch_id}?from=history${searchParams.toString() ? `&back=${encodeURIComponent(searchParams.toString())}` : ""}`} className="min-w-0 flex-1">
                 <span className="block truncate font-medium">
                   {item.patient_name || "Unnamed patient"}
                 </span>
@@ -196,6 +212,7 @@ function HistoryPage() {
         open={pendingDelete !== null}
         title="Delete this EOB?"
         body="The extracted row is removed. This cannot be undone."
+        destructive
         confirmLabel="Delete"
         busyLabel="Deleting…"
         busy={deleting}
@@ -210,7 +227,15 @@ function HistoryPage() {
 
 export default function HistoryRoute() {
   return (
-    <Suspense fallback={<p className="text-sm text-[#614f38]">Loading history…</p>}>
+    <Suspense
+      fallback={
+        <div className="space-y-3 rounded-2xl bg-[#eee0c7] p-4" aria-busy="true" aria-label="Loading history">
+          <div className="h-4 w-40 rounded bg-[#d1b996]" />
+          <div className="h-4 w-64 rounded bg-[#d1b996]" />
+          <div className="h-4 w-52 rounded bg-[#d1b996]" />
+        </div>
+      }
+    >
       <HistoryPage />
     </Suspense>
   );

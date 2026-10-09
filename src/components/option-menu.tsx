@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
@@ -20,6 +20,7 @@ export function OptionMenu({
   const labelId = useId();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
   const [box, setBox] = useState({ top: 0, left: 0, width: 176 });
 
   function place() {
@@ -29,6 +30,18 @@ export function OptionMenu({
     const left = Math.min(rect.left, window.innerWidth - width - 8);
     setBox({ top: rect.bottom + 6, left: Math.max(8, left), width });
   }
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const menu = menuRef.current;
+    const button = buttonRef.current;
+    if (!menu || !button) return;
+    const menuRect = menu.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    if (menuRect.bottom <= window.innerHeight - 8) return;
+    const nextTop = Math.round(Math.max(8, buttonRect.top - 6 - menuRect.height));
+    setBox((current) => (current.top === nextTop ? current : { ...current, top: nextTop }));
+  }, [open, box.top]);
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +95,7 @@ export function OptionMenu({
       {open && typeof document !== "undefined"
         ? createPortal(
             <ul
+              ref={menuRef}
               data-option-menu
               role="listbox"
               aria-labelledby={labelId}
@@ -92,7 +106,7 @@ export function OptionMenu({
                 width: box.width,
                 zIndex: 70,
               }}
-              className="max-h-64 overflow-auto rounded-xl border border-[#d1b996] bg-[#f2efe9] py-1 shadow-lg"
+              className="menu-fade max-h-64 overflow-auto rounded-xl border border-[#d1b996] bg-[#f2efe9] py-1 shadow-lg"
             >
               {options.map((option) => {
                 const selected = option.value === value;

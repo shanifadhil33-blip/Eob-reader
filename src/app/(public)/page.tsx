@@ -1,7 +1,4 @@
 import Link from "next/link";
-import { PortfolioNotice } from "@/components/portfolio-notice";
-import { PublicHeader } from "@/components/public-header";
-import { SiteFooter } from "@/components/site-footer";
 
 const steps = [
   {
@@ -29,9 +26,6 @@ export default async function LandingPage({
 }) {
   const params = await searchParams;
   return (
-    <div className="flex min-h-screen flex-col bg-[#f2efe9] text-[#281a0d]">
-      <PortfolioNotice />
-      <PublicHeader />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4">
         <section className="py-14 sm:py-20">
           <p className="text-sm font-medium text-[#416c6f]">A portfolio piece</p>
@@ -107,7 +101,5 @@ export default async function LandingPage({
           </ul>
         </section>
       </main>
-      <SiteFooter />
-    </div>
   );
 }

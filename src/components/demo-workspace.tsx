@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { OptionMenu } from "@/components/option-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
@@ -10,6 +11,7 @@ import {
   type DemoClaim,
   type ReviewStatus,
 } from "@/lib/demo/sample-batch";
+import { sortOrderedItems } from "@/lib/list-order";
 import { generateCSV } from "@/lib/export/dentrix";
 import {
   eobExtractionsToX12Data,
@@ -42,27 +44,6 @@ function money(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
-function sortClaims(claims: DemoClaim[], sort: string) {
-  const copy = [...claims];
-  copy.sort((a, b) => {
-    if (sort === "oldest") {
-      const byDate = a.created_at.localeCompare(b.created_at);
-      return byDate || a.patient_name.localeCompare(b.patient_name);
-    }
-    if (sort === "name") {
-      const byName = a.patient_name.localeCompare(b.patient_name);
-      return byName || a.created_at.localeCompare(b.created_at);
-    }
-    if (sort === "amount") {
-      const byAmount = b.check_amount - a.check_amount;
-      return byAmount || a.patient_name.localeCompare(b.patient_name);
-    }
-    const byDate = b.created_at.localeCompare(a.created_at);
-    return byDate || a.patient_name.localeCompare(b.patient_name);
-  });
-  return copy;
-}
-
 function downloadText(filename: string, text: string) {
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -74,17 +55,28 @@ function downloadText(filename: string, text: string) {
 }
 
 export function DemoWorkspace() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sortParam = searchParams.get("sort") || "newest";
+  const statusParam = searchParams.get("status") || "all";
+  const sort = sortOptions.some((option) => option.value === sortParam) ? sortParam : "newest";
+  const status = statusOptions.some((option) => option.value === statusParam) ? statusParam : "all";
   const [claims, setClaims] = useState<DemoClaim[]>(initialDemoClaims);
-  const [sort, setSort] = useState("newest");
-  const [status, setStatus] = useState("all");
   const [selectedId, setSelectedId] = useState("juniper");
   const [format, setFormat] = useState("835");
   const [resetOpen, setResetOpen] = useState(false);
 
+  function replaceParams(next: Record<string, string>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) params.set(key, value);
+    const query = params.toString();
+    router.replace(query ? `/demo?${query}` : "/demo", { scroll: false });
+  }
+
   const visible = useMemo(() => {
     const filtered =
       status === "all" ? claims : claims.filter((claim) => claim.review_status === status);
-    return sortClaims(filtered, sort);
+    return sortOrderedItems(filtered, sort);
   }, [claims, sort, status]);
 
   const selected = visible.find((claim) => claim.id === selectedId) ?? visible[0] ?? null;
@@ -133,15 +125,22 @@ export function DemoWorkspace() {
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <OptionMenu label="Sort" value={sort} options={sortOptions} onChange={setSort} />
+        <OptionMenu
+          label="Sort"
+          value={sort}
+          options={sortOptions}
+          onChange={(value) => replaceParams({ sort: value })}
+          widthClass="w-56"
+        />
         <OptionMenu
           label="Status"
           value={status}
           options={statusOptions}
           onChange={(next) => {
-            setStatus(next);
+            replaceParams({ status: next });
             setSelectedId("");
           }}
+          widthClass="w-44"
         />
         <button
           type="button"
@@ -158,9 +157,16 @@ export function DemoWorkspace() {
       </p>
 
       {visible.length === 0 ? (
-        <p className="rounded-2xl bg-[#eee0c7] p-6 text-sm text-[#614f38]">
-          No sample claims match that status. Choose All statuses to see the batch again.
-        </p>
+        <div className="rounded-2xl bg-[#eee0c7] p-6">
+          <p className="text-sm text-[#614f38]">No sample claims match that status.</p>
+          <button
+            type="button"
+            onClick={() => replaceParams({ status: "all" })}
+            className="mt-3 inline-flex h-11 items-center rounded-xl bg-[#416c6f] px-4 text-sm font-medium text-[#f2efe9]"
+          >
+            Clear filter
+          </button>
+        </div>
       ) : (
         <ul className="space-y-2">
           {visible.map((claim) => {
@@ -279,7 +285,7 @@ export function DemoWorkspace() {
             value={format}
             options={formatOptions}
             onChange={setFormat}
-            widthClass="w-52"
+            widthClass="w-56"
           />
         </div>
         {approved.length === 0 ? (
@@ -319,11 +325,10 @@ export function DemoWorkspace() {
         onCancel={() => setResetOpen(false)}
         onConfirm={() => {
           setClaims(initialDemoClaims);
-          setSort("newest");
-          setStatus("all");
           setSelectedId("juniper");
           setFormat("835");
           setResetOpen(false);
+          router.replace("/demo", { scroll: false });
         }}
       />
     </div>
