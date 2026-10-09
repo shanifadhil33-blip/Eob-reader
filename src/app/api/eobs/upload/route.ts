@@ -6,6 +6,8 @@ import { readPdfTextLayer } from "@/lib/pdf/read-pdf";
 import { alphanumericCount, MEANINGFUL_PAGE_CHARS } from "@/lib/pdf/text-layer";
 import type { EOBLineItem } from "@/lib/extraction/types";
 
+export const maxDuration = 120;
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
