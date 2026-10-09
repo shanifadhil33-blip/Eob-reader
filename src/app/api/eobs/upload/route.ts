@@ -147,7 +147,7 @@ export async function POST(request: Request) {
             return; // Skip this file
           }
 
-          // Send text to our extraction utility (which routes to Ollama or OpenRouter)
+          // Gemini, then Groq, then OpenRouter. Missing keys are skipped. Errors stay friendly.
           const extraction = await extractEOBFromText(pdfText);
 
           // Store extraction

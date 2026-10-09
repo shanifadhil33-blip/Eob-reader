@@ -2,16 +2,29 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildExtractionRequest,
+  buildGeminiExtractionBody,
+  buildGroqExtractionBody,
   buildHealthProbeRequest,
+  configuredHealthTargets,
+  DEFAULT_GEMINI_MODELS,
+  selectHealthTargets,
+  DEFAULT_GROQ_MODEL,
   EXTRACTION_MODELS,
+  extractAcrossProviders,
   extractWithFallback,
+  GROQ_FREE_TIER_TPM,
+  GROQ_REASONING_TOKEN_TARGET,
+  groqMaxTokens,
   interpretHealthProbe,
   JSON_MODE_MODELS,
   OPENROUTER_TIMEOUT_MS,
   openRouterHeaders,
   OUTPUT_TOKEN_CAP,
   parseExtractionJson,
+  parseGeminiModels,
+  publicErrorSnippet,
   READER_BUSY_MESSAGE,
+  shouldTryNextGeminiModel,
   shouldTryNextModel,
 } from "../src/lib/extraction/model-chain.ts";
 
@@ -249,14 +262,17 @@ describe("OpenRouter request", () => {
 describe("interpretHealthProbe", () => {
   it("marks a 200 completion ok and keeps a 404 snippet", () => {
     const ok = interpretHealthProbe(
+      "openrouter",
       "google/gemini-2.5-flash",
       200,
       JSON.stringify({ choices: [{ message: { content: "OK" } }] })
     );
+    assert.equal(ok.provider, "openrouter");
     assert.equal(ok.ok, true);
     assert.equal(ok.error_snippet, null);
 
     const denied = interpretHealthProbe(
+      "openrouter",
       "google/gemma-4-26b-a4b-it:free",
       404,
       JSON.stringify({ error: { message: "No endpoints found matching your data policy" } })
@@ -271,7 +287,7 @@ describe("interpretHealthProbe", () => {
     const previous = process.env.OPENROUTER_API_KEY;
     process.env.OPENROUTER_API_KEY = secret;
     try {
-      const probe = interpretHealthProbe("google/gemini-2.5-flash", 401, `invalid key ${secret}`);
+      const probe = interpretHealthProbe("openrouter", "google/gemini-2.5-flash", 401, `invalid key ${secret}`);
       assert.equal(probe.ok, false);
       assert.equal(probe.error_snippet.includes(secret), false);
       assert.match(probe.error_snippet, /\[redacted\]/);
@@ -279,5 +295,182 @@ describe("interpretHealthProbe", () => {
       if (previous === undefined) delete process.env.OPENROUTER_API_KEY;
       else process.env.OPENROUTER_API_KEY = previous;
     }
+  });
+});
+
+const quiet = async (run) => {
+  const original = console.error;
+  console.error = () => {};
+  try {
+    return await run();
+  } finally {
+    console.error = original;
+  }
+};
+
+describe("zero-cost providers", () => {
+  it("uses the Gemini default chain and JSON output cap", () => {
+    assert.deepEqual([...DEFAULT_GEMINI_MODELS], [
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-3.8-flash",
+      "gemini-2.5-flash-lite",
+    ]);
+    assert.deepEqual(parseGeminiModels(undefined), [...DEFAULT_GEMINI_MODELS]);
+    assert.deepEqual(parseGeminiModels(" gemini-2.5-flash, ,gemini-2.5-flash-lite "), [
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+    ]);
+    assert.equal(shouldTryNextGeminiModel(429), true);
+    assert.equal(shouldTryNextGeminiModel(403), true);
+    assert.equal(shouldTryNextGeminiModel(404), true);
+    assert.equal(shouldTryNextGeminiModel(503), true);
+    assert.equal(shouldTryNextGeminiModel(400), false);
+    assert.equal(shouldTryNextGeminiModel(401), false);
+
+    const body = buildGeminiExtractionBody("Tamsin Fernleaf");
+    assert.equal(body.generationConfig.maxOutputTokens, 4000);
+    assert.equal(body.generationConfig.responseMimeType, "application/json");
+    assert.equal(body.contents[0].parts[0].text.includes("Tamsin Fernleaf"), true);
+  });
+
+  it("raises Groq max_tokens for reasoning without crossing the 8K minute", () => {
+    const short = buildGroqExtractionBody(DEFAULT_GROQ_MODEL, "short eob");
+    assert.equal(short.model, "openai/gpt-oss-120b");
+    assert.equal(short.max_tokens, GROQ_REASONING_TOKEN_TARGET);
+    assert.ok(short.max_tokens > OUTPUT_TOKEN_CAP);
+    assert.ok(short.max_tokens < GROQ_FREE_TIER_TPM);
+
+    const huge = groqMaxTokens(GROQ_FREE_TIER_TPM * 4);
+    assert.ok(huge < GROQ_FREE_TIER_TPM);
+    assert.equal(huge <= 512 || huge < GROQ_REASONING_TOKEN_TARGET, true);
+  });
+
+  it("skips providers with no key and keeps OpenRouter last", () => {
+    assert.deepEqual(
+      configuredHealthTargets({ GEMINI_API_KEY: " ", GROQ_API_KEY: "", OPENROUTER_API_KEY: "or" }).map(
+        (target) => target.provider
+      ),
+      ["openrouter", "openrouter", "openrouter"]
+    );
+    const mixed = configuredHealthTargets({
+      GEMINI_API_KEY: "g",
+      GEMINI_MODELS: "gemini-2.5-flash",
+      GROQ_API_KEY: "q",
+      OPENROUTER_API_KEY: "or",
+    });
+    assert.deepEqual(
+      mixed.map((target) => `${target.provider}:${target.model}`),
+      [
+        "gemini:gemini-2.5-flash",
+        `groq:${DEFAULT_GROQ_MODEL}`,
+        ...EXTRACTION_MODELS.map((model) => `openrouter:${model}`),
+      ]
+    );
+    assert.deepEqual(
+      selectHealthTargets(mixed, false).map((target) => `${target.provider}:${target.model}`),
+      ["gemini:gemini-2.5-flash", `groq:${DEFAULT_GROQ_MODEL}`, `openrouter:${EXTRACTION_MODELS[0]}`]
+    );
+    assert.equal(selectHealthTargets(mixed, true).length, mixed.length);
+  });
+
+  it("uses Gemini, then Groq, then OpenRouter, and hides provider text", async () => {
+    const calls = [];
+    const parsed = await quiet(() =>
+      extractAcrossProviders({
+        gemini: {
+          models: ["gemini-3.8-flash", "gemini-2.5-flash"],
+          complete: async (model) => {
+            calls.push(model);
+            if (model === "gemini-3.8-flash") {
+              return { status: 404, content: null, errorSnippet: "model not found AIzaSySECRETKEY1234567890" };
+            }
+            return { status: 401, content: null, errorSnippet: "bad key" };
+          },
+        },
+        groq: {
+          model: "openai/gpt-oss-120b",
+          complete: async (model) => {
+            calls.push(model);
+            return { status: 413, content: null, errorSnippet: "Limit 8000 gsk_secretvalue" };
+          },
+        },
+        openRouter: {
+          models: ["google/gemini-2.5-flash"],
+          complete: async (model) => {
+            calls.push(model);
+            return { status: 200, content: "```json\n" + JSON.stringify(dental) + "\n```" };
+          },
+        },
+      })
+    );
+    assert.deepEqual(calls, ["gemini-3.8-flash", "gemini-2.5-flash", "openai/gpt-oss-120b", "google/gemini-2.5-flash"]);
+    assert.equal(parsed.patient_name, "Tamsin Fernleaf");
+    assert.equal(publicErrorSnippet("AIzaSySECRETKEY1234567890").includes("AIza"), false);
+    assert.equal(publicErrorSnippet("gsk_secretvalue").includes("gsk_"), false);
+  });
+
+  it("does not call later providers after Gemini returns JSON", async () => {
+    const calls = [];
+    const parsed = await extractAcrossProviders({
+      gemini: {
+        models: ["gemini-2.5-flash", "gemini-2.5-flash-lite"],
+        complete: async (model) => {
+          calls.push(model);
+          return { status: 200, content: JSON.stringify(dental) };
+        },
+      },
+      groq: {
+        model: "openai/gpt-oss-120b",
+        complete: async () => {
+          calls.push("groq");
+          return { status: 200, content: JSON.stringify(denial) };
+        },
+      },
+    });
+    assert.deepEqual(calls, ["gemini-2.5-flash"]);
+    assert.equal(parsed.patient_name, "Tamsin Fernleaf");
+  });
+
+  it("stops the Gemini list on 400 and still tries Groq", async () => {
+    const calls = [];
+    await quiet(() =>
+      extractAcrossProviders({
+        gemini: {
+          models: ["gemini-3.8-flash", "gemini-2.5-flash"],
+          complete: async (model) => {
+            calls.push(model);
+            return { status: 400, content: null, errorSnippet: "bad request" };
+          },
+        },
+        groq: {
+          model: "openai/gpt-oss-120b",
+          complete: async (model) => {
+            calls.push(model);
+            return { status: 200, content: JSON.stringify(denial) };
+          },
+        },
+      })
+    );
+    assert.deepEqual(calls, ["gemini-3.8-flash", "openai/gpt-oss-120b"]);
+  });
+
+  it("returns the busy message when every configured provider fails", async () => {
+    await assert.rejects(
+      quiet(() =>
+        extractAcrossProviders({
+          groq: {
+            model: "openai/gpt-oss-120b",
+            complete: async () => ({ status: 429, content: null, errorSnippet: "rate limit raw" }),
+          },
+        })
+      ),
+      (error) => {
+        assert.ok(error instanceof Error);
+        assert.equal(error.message, READER_BUSY_MESSAGE);
+        assert.equal(error.message.includes("rate limit"), false);
+        return true;
+      }
+    );
   });
 });

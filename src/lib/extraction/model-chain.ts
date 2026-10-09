@@ -3,6 +3,29 @@ import type { EOBExtraction, EOBLineItem } from "./types";
 /** One- or two-page EOBs fit well under this. OpenRouter bills the requested cap. */
 export const OUTPUT_TOKEN_CAP = 4000;
 
+/**
+ * Direct Gemini API. Override with GEMINI_MODELS (comma-separated).
+ * Flash-Lite is first: this key allows about 500 Flash-Lite requests a day
+ * and about 20 Flash requests a day.
+ */
+export const DEFAULT_GEMINI_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-3.8-flash",
+  "gemini-2.5-flash-lite",
+] as const;
+
+export const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
+
+/**
+ * Higher than OUTPUT_TOKEN_CAP so Groq's reasoning model can think and still
+ * return JSON. The free tier counts the prompt plus this ceiling against 8K TPM.
+ */
+export const GROQ_REASONING_TOKEN_TARGET = 6000;
+
+/** Groq free tier for openai/gpt-oss-120b: 8,000 tokens per minute. */
+export const GROQ_FREE_TIER_TPM = 8000;
+
 export const READER_BUSY_MESSAGE =
   "The reader is busy right now. Please try again in a minute.";
 
@@ -141,10 +164,16 @@ export type ModelCompletion = {
 };
 
 export type HealthProbe = {
+  provider: string;
   model: string;
   status: number;
   ok: boolean;
   error_snippet: string | null;
+};
+
+export type HealthTarget = {
+  provider: "gemini" | "groq" | "openrouter";
+  model: string;
 };
 
 const SNIPPET_LIMIT = 200;
@@ -152,18 +181,27 @@ const SNIPPET_LIMIT = 200;
 /** Drop tokens and keys before anything is logged or sent back to the browser. */
 export function publicErrorSnippet(value: string | null | undefined): string {
   const raw = (value ?? "").replace(/\s+/g, " ").trim();
-  const key = process.env.OPENROUTER_API_KEY;
   let safe = raw.replace(/Bearer\s+\S+/gi, "Bearer [redacted]");
   safe = safe.replace(/sk-or-[A-Za-z0-9_-]+/g, "[redacted]");
-  if (key) safe = safe.split(key).join("[redacted]");
+  safe = safe.replace(/AIza[0-9A-Za-z_-]{10,}/g, "[redacted]");
+  safe = safe.replace(/gsk_[0-9A-Za-z_-]+/g, "[redacted]");
+  for (const key of [process.env.OPENROUTER_API_KEY, process.env.GEMINI_API_KEY, process.env.GROQ_API_KEY]) {
+    if (key) safe = safe.split(key).join("[redacted]");
+  }
   return safe.slice(0, SNIPPET_LIMIT);
 }
 
-export function logModelFailure(model: string, status: number, snippet: string | null | undefined): void {
-  console.error(`[extract] model=${model} status=${status} error=${publicErrorSnippet(snippet)}`);
+export function logModelFailure(
+  model: string,
+  status: number,
+  snippet: string | null | undefined,
+  provider?: string
+): void {
+  const prefix = provider ? `provider=${provider} ` : "";
+  console.error(`[extract] ${prefix}model=${model} status=${status} error=${publicErrorSnippet(snippet)}`);
 }
 
-export function interpretHealthProbe(model: string, status: number, body: string): HealthProbe {
+export function interpretHealthProbe(provider: string, model: string, status: number, body: string): HealthProbe {
   let ok = status >= 200 && status < 300;
   let snippetSource = body;
   if (ok && body.trim().startsWith("{")) {
@@ -184,11 +222,213 @@ export function interpretHealthProbe(model: string, status: number, body: string
   }
   const errorSnippet = ok ? "" : publicErrorSnippet(snippetSource);
   return {
+    provider,
     model,
     status,
     ok,
     error_snippet: errorSnippet.length > 0 ? errorSnippet : null,
   };
+}
+
+export function providerKey(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function parseGeminiModels(value: string | undefined): string[] {
+  const parsed = (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  return parsed.length > 0 ? parsed : [...DEFAULT_GEMINI_MODELS];
+}
+
+export function groqModelName(value: string | undefined): string {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : DEFAULT_GROQ_MODEL;
+}
+
+/**
+ * Ask for more than 4000 tokens when the free-tier minute can hold it.
+ * Groq charges the requested max_tokens plus the prompt against 8K TPM,
+ * so a long EOB gets a smaller ceiling instead of a 413.
+ */
+export function groqMaxTokens(promptCharacters: number): number {
+  const promptTokens = Math.ceil(Math.max(0, promptCharacters) / 4);
+  const room = GROQ_FREE_TIER_TPM - promptTokens - 128;
+  if (room < 512) return 512;
+  return Math.min(GROQ_REASONING_TOKEN_TARGET, room);
+}
+
+export function shouldTryNextGeminiModel(status: number): boolean {
+  return status === 429 || status === 403 || status === 404 || status >= 500;
+}
+
+export function configuredHealthTargets(env: {
+  GEMINI_API_KEY?: string;
+  GEMINI_MODELS?: string;
+  GROQ_API_KEY?: string;
+  GROQ_MODEL?: string;
+  OPENROUTER_API_KEY?: string;
+}): HealthTarget[] {
+  const targets: HealthTarget[] = [];
+  if (providerKey(env.GEMINI_API_KEY)) {
+    for (const model of parseGeminiModels(env.GEMINI_MODELS)) {
+      targets.push({ provider: "gemini", model });
+    }
+  }
+  if (providerKey(env.GROQ_API_KEY)) {
+    targets.push({ provider: "groq", model: groqModelName(env.GROQ_MODEL) });
+  }
+  if (providerKey(env.OPENROUTER_API_KEY)) {
+    for (const model of EXTRACTION_MODELS) {
+      targets.push({ provider: "openrouter", model });
+    }
+  }
+  return targets;
+}
+
+/** Default health check hits one model per provider so a page load does not spend the daily quota. */
+export function selectHealthTargets(targets: readonly HealthTarget[], all: boolean): HealthTarget[] {
+  if (all) return [...targets];
+  const seen = new Set<string>();
+  const selected: HealthTarget[] = [];
+  for (const target of targets) {
+    if (seen.has(target.provider)) continue;
+    seen.add(target.provider);
+    selected.push(target);
+  }
+  return selected;
+}
+
+const EOB_USER_PREFIX =
+  "Here is the text of an EOB. Extract every line, including paid and denied lines. Return one JSON object.\n\n";
+
+export function buildGeminiExtractionBody(pdfText: string) {
+  return {
+    systemInstruction: { parts: [{ text: TEXT_EXTRACTION_PROMPT }] },
+    contents: [{ role: "user", parts: [{ text: `${EOB_USER_PREFIX}${pdfText}` }] }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: OUTPUT_TOKEN_CAP,
+      responseMimeType: "application/json",
+    },
+  };
+}
+
+export function buildGeminiHealthBody() {
+  return {
+    contents: [{ role: "user", parts: [{ text: "Reply OK" }] }],
+    generationConfig: { temperature: 0, maxOutputTokens: 16 },
+  };
+}
+
+export function buildGroqExtractionBody(model: string, pdfText: string) {
+  const user = `${EOB_USER_PREFIX}${pdfText}`;
+  return {
+    model,
+    temperature: 0.1,
+    max_tokens: groqMaxTokens(TEXT_EXTRACTION_PROMPT.length + user.length),
+    messages: [
+      { role: "system" as const, content: TEXT_EXTRACTION_PROMPT },
+      { role: "user" as const, content: user },
+    ],
+  };
+}
+
+export function buildGroqHealthBody(model: string) {
+  return {
+    model,
+    max_tokens: 1024,
+    messages: [{ role: "user" as const, content: "Reply OK" }],
+  };
+}
+
+export async function extractWithGeminiChain(
+  complete: (model: string) => Promise<ModelCompletion>,
+  models: readonly string[]
+): Promise<EOBExtraction> {
+  for (const model of models) {
+    let completion: ModelCompletion;
+    try {
+      completion = await complete(model);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "request failed";
+      logModelFailure(model, 0, message, "gemini");
+      continue;
+    }
+
+    if (completion.status === 200 && completion.content) {
+      try {
+        return parseExtractionJson(completion.content);
+      } catch {
+        logModelFailure(model, completion.status, "unparseable JSON", "gemini");
+        continue;
+      }
+    }
+
+    logModelFailure(
+      model,
+      completion.status,
+      completion.errorSnippet ?? completion.content ?? "empty response",
+      "gemini"
+    );
+    if (completion.status === 200 || shouldTryNextGeminiModel(completion.status)) continue;
+    break;
+  }
+
+  throw new Error(READER_BUSY_MESSAGE);
+}
+
+export async function extractAcrossProviders(providers: {
+  gemini?: { models: readonly string[]; complete: (model: string) => Promise<ModelCompletion> };
+  groq?: { model: string; complete: (model: string) => Promise<ModelCompletion> };
+  openRouter?: { models?: readonly string[]; complete: (model: string) => Promise<ModelCompletion> };
+}): Promise<EOBExtraction> {
+  if (providers.gemini) {
+    try {
+      return await extractWithGeminiChain(providers.gemini.complete, providers.gemini.models);
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== READER_BUSY_MESSAGE) {
+        logModelFailure("gemini", 0, error instanceof Error ? error.message : "request failed", "gemini");
+      }
+    }
+  }
+
+  if (providers.groq) {
+    const model = providers.groq.model;
+    try {
+      const completion = await providers.groq.complete(model);
+      if (completion.status === 200 && completion.content) {
+        try {
+          return parseExtractionJson(completion.content);
+        } catch {
+          logModelFailure(model, completion.status, "unparseable JSON", "groq");
+        }
+      } else {
+        logModelFailure(
+          model,
+          completion.status,
+          completion.errorSnippet ?? completion.content ?? "empty response",
+          "groq"
+        );
+      }
+    } catch (error) {
+      logModelFailure(model, 0, error instanceof Error ? error.message : "request failed", "groq");
+    }
+  }
+
+  if (providers.openRouter) {
+    try {
+      return await extractWithFallback(providers.openRouter.complete, providers.openRouter.models);
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== READER_BUSY_MESSAGE) {
+        logModelFailure("openrouter", 0, error instanceof Error ? error.message : "request failed", "openrouter");
+      }
+    }
+  }
+
+  throw new Error(READER_BUSY_MESSAGE);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
