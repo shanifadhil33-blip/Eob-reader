@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, use } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ import { BackLink } from "@/components/back-link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBatchTitle } from "@/lib/format-batch";
+import { carryQuery, reviewParent } from "@/lib/return-to";
 
 interface LineItem {
   id: string;
@@ -118,18 +119,21 @@ function getStatusBadge(status: string) {
   );
 }
 
-export default function BatchReviewPage({
+function BatchReviewPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const parent = reviewParent(searchParams.get("from"), searchParams.get("back"));
+  const carried = carryQuery(searchParams.get("from"), searchParams.get("back"));
   const [batch, setBatch] = useState<BatchData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentEobIndex, setCurrentEobIndex] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const router = useRouter();
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     fetchBatch();
@@ -157,11 +161,18 @@ export default function BatchReviewPage({
   async function fetchBatch() {
     try {
       const res = await fetch(`/api/eobs/batches/${id}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to fetch batch");
+      if (res.status === 404) {
+        setBatch(null);
+        setLoadError(false);
+        return;
+      }
+      if (!res.ok) throw new Error("load");
       const data = await res.json();
       setBatch(data);
-    } catch (error) {
-      toast.error("Failed to load batch");
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+      setBatch(null);
     } finally {
       setLoading(false);
     }
@@ -210,13 +221,39 @@ export default function BatchReviewPage({
   }
 
   if (loading) {
-    return <p className="text-sm text-[#614f38]">Loading batch…</p>;
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label="Loading batch">
+        <div className="h-4 w-28 rounded bg-[#d1b996]" />
+        <div className="h-8 w-64 rounded bg-[#d1b996]" />
+        <div className="h-16 rounded-2xl bg-[#eee0c7]" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <BackLink href={parent.href} label={parent.label} />
+        <h2 className="font-display mt-4 text-3xl">Could not load this batch</h2>
+        <p className="mt-2 text-sm text-[#614f38]">Nothing was changed.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            void fetchBatch();
+          }}
+          className="mt-4 inline-flex h-11 items-center rounded-xl bg-[#416c6f] px-4 text-sm font-medium text-[#f2efe9]"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   if (!batch) {
     return (
       <div>
-        <BackLink href="/dashboard" />
+        <BackLink href={parent.href} label={parent.label} />
         <p className="mt-4 text-[#614f38]">That batch was not found.</p>
       </div>
     );
@@ -225,7 +262,7 @@ export default function BatchReviewPage({
   if (batch.eob_extractions.length === 0) {
     return (
       <div>
-        <BackLink href="/dashboard" />
+        <BackLink href={parent.href} label={parent.label} />
         <h2 className="font-display mt-4 text-3xl">
           {batch.status === "processing" ? "Still reading" : "Nothing to review"}
         </h2>
@@ -247,7 +284,7 @@ export default function BatchReviewPage({
     <div className="space-y-6 pb-16">
       <div className="flex flex-col gap-4 rounded-2xl bg-[#eee0c7] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="min-w-0">
-          <BackLink href="/dashboard" />
+          <BackLink href={parent.href} label={parent.label} />
           <h1 className="font-display mt-2 truncate text-2xl" title={formatBatchTitle(batch.created_at)}>
             {formatBatchTitle(batch.created_at)}
           </h1>
@@ -286,9 +323,11 @@ export default function BatchReviewPage({
                     title="PDF Preview"
                   />
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-black/40 pt-10">
-                    <Loader2 className="w-10 h-10 animate-spin mb-4 text-[#416c6f]" />
-                    <p className="text-base font-bold">Loading PDF securely...</p>
+                  <div className="flex h-full flex-col gap-3 p-6" aria-busy="true" aria-label="Loading PDF">
+                    <div className="h-4 w-48 rounded bg-[#d1b996]" />
+                    <div className="h-4 w-full rounded bg-[#eee0c7]" />
+                    <div className="h-4 w-5/6 rounded bg-[#eee0c7]" />
+                    <div className="mt-4 h-40 rounded-2xl bg-[#eee0c7]" />
                   </div>
                 )}
               </div>
@@ -296,7 +335,7 @@ export default function BatchReviewPage({
           </Dialog>
 
           <Link
-            href={`/batch/${id}/export`}
+            href={`/batch/${id}/export${carried}`}
             className={cn(
               buttonVariants({ variant: "default", size: "default" }),
               "rounded-xl bg-[#416c6f] px-4 text-[#f2efe9]"
@@ -309,11 +348,11 @@ export default function BatchReviewPage({
       </div>
 
       {/* EOB Navigation Card */}
-      <div className="flex items-center justify-between p-3 bg-white border border-black/5 rounded-3xl shadow-sm">
+      <div className="flex flex-col gap-3 p-3 bg-white border border-black/5 rounded-3xl shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <Button
           variant="outline"
           size="sm"
-          className="text-black/60 hover:text-black border-black/5 rounded-xl font-bold shadow-sm px-2.5 sm:px-4"
+          className="h-11 text-black/60 hover:text-black border-black/5 rounded-xl font-bold shadow-sm px-2.5 sm:px-4"
           disabled={currentEobIndex === 0}
           onClick={() => setCurrentEobIndex((prev) => prev - 1)}
         >
@@ -325,7 +364,7 @@ export default function BatchReviewPage({
             <button
               key={eob.id}
               onClick={() => setCurrentEobIndex(i)}
-              className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 ${
+              className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold shrink-0 ${
                 i === currentEobIndex
                   ? eob.review_status === "approved"
                     ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20 border border-emerald-600"
@@ -350,7 +389,7 @@ export default function BatchReviewPage({
         <Button
           variant="outline"
           size="sm"
-          className="text-black/60 hover:text-black border-black/5 rounded-xl font-bold shadow-sm px-2.5 sm:px-4"
+          className="h-11 text-black/60 hover:text-black border-black/5 rounded-xl font-bold shadow-sm px-2.5 sm:px-4"
           disabled={currentEobIndex === batch.eob_extractions.length - 1}
           onClick={() => setCurrentEobIndex((prev) => prev + 1)}
         >
@@ -376,11 +415,11 @@ export default function BatchReviewPage({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
               <Button
                 size="default"
                 variant={currentEob.review_status === "flagged" ? "default" : "outline"}
-                className={`rounded-xl font-bold shadow-sm border px-3 sm:px-4 py-2 text-xs sm:text-sm h-10 ${
+                className={`rounded-xl font-bold shadow-sm border px-3 sm:px-4 py-2 text-sm h-11 ${
                   currentEob.review_status === "flagged"
                     ? "bg-amber-500 text-white shadow-inner border-amber-600 hover:bg-amber-600"
                     : "border-black/5 text-amber-600 hover:bg-amber-50 bg-white"
@@ -398,7 +437,7 @@ export default function BatchReviewPage({
               <Button
                 size="default"
                 variant={currentEob.review_status === "rejected" ? "default" : "outline"}
-                className={`rounded-xl font-bold shadow-sm border px-3 sm:px-4 py-2 text-xs sm:text-sm h-10 ${
+                className={`rounded-xl font-bold shadow-sm border px-3 sm:px-4 py-2 text-sm h-11 ${
                   currentEob.review_status === "rejected"
                     ? "bg-red-500 text-white shadow-inner border-red-600 hover:bg-red-600"
                     : "border-black/5 text-red-600 hover:bg-red-50 bg-white"
@@ -415,7 +454,7 @@ export default function BatchReviewPage({
               </Button>
               <Button
                 size="default"
-                className={`rounded-xl font-bold shadow-md border px-3 sm:px-4 py-2 text-xs sm:text-sm h-10 ${
+                className={`rounded-xl font-bold shadow-md border px-3 sm:px-4 py-2 text-sm h-11 ${
                   currentEob.review_status === "approved"
                     ? "bg-emerald-600 text-white shadow-inner border-emerald-700 hover:bg-emerald-700"
                     : "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600"
@@ -500,5 +539,20 @@ export default function BatchReviewPage({
           </div>
         )}
       </div>
+  );
+}
+
+export default function BatchReviewRoute(props: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4" aria-busy="true" aria-label="Loading batch">
+          <div className="h-4 w-28 rounded bg-[#d1b996]" />
+          <div className="h-8 w-64 rounded bg-[#d1b996]" />
+        </div>
+      }
+    >
+      <BatchReviewPage {...props} />
+    </Suspense>
   );
 }

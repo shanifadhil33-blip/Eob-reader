@@ -31,7 +31,8 @@ export async function POST(
     .eq("review_status", "approved");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("export read failed", error.message);
+    return NextResponse.json({ error: "Couldn't export. Try again." }, { status: 500 });
   }
 
   if (!eobs || eobs.length === 0) {
@@ -71,11 +72,9 @@ export async function POST(
     // Generate 835
     const result = generateX12835(x12Data);
     if (!result.success || !result.ediString) {
+      console.error("835 generation failed", result.errors);
       return NextResponse.json(
-        {
-          error: "835 generation failed",
-          details: result.errors,
-        },
+        { error: "Couldn't build the 835 file. Try again." },
         { status: 500 }
       );
     }

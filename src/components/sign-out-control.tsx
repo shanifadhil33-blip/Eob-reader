@@ -23,13 +23,13 @@ export function SignOutControl() {
       const { error: signOutError } = await supabase.auth.signOut();
       if (signOutError) {
         setBusy(false);
-        setError("Sign out failed. Try again.");
+        setError("Could not sign out. Try again.");
         return;
       }
       window.location.replace("/");
     } catch {
       setBusy(false);
-      setError("Sign out failed. Try again.");
+      setError("Could not sign out. Try again.");
     }
   }
 

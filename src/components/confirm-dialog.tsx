@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
+import { Loader2 } from "lucide-react";
 
 export function ConfirmDialog({
   open,
@@ -11,6 +12,7 @@ export function ConfirmDialog({
   busyLabel,
   busy,
   error,
+  destructive = false,
   onCancel,
   onConfirm,
 }: {
@@ -21,17 +23,18 @@ export function ConfirmDialog({
   busyLabel: string;
   busy: boolean;
   error?: string | null;
+  destructive?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const titleId = useId();
-  const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    confirmRef.current?.focus();
+    cancelRef.current?.focus();
 
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape" && !busy) onCancel();
@@ -73,6 +76,7 @@ export function ConfirmDialog({
         ) : null}
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
+            ref={cancelRef}
             type="button"
             disabled={busy}
             onClick={onCancel}
@@ -81,12 +85,14 @@ export function ConfirmDialog({
             Cancel
           </button>
           <button
-            ref={confirmRef}
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            className="h-11 rounded-xl bg-[#416c6f] text-sm font-medium text-[#f2efe9] disabled:opacity-80"
+            className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#f2efe9] disabled:opacity-80 ${
+              destructive ? "bg-[#8c3a2f]" : "bg-[#416c6f]"
+            }`}
           >
+            {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             {busy ? busyLabel : confirmLabel}
           </button>
         </div>

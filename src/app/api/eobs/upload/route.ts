@@ -246,7 +246,7 @@ export async function POST(request: Request) {
     });
   } catch {
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Couldn't read that upload. Try again." },
       { status: 500 }
     );
   }
