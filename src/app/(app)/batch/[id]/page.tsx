@@ -192,7 +192,12 @@ export default function BatchReviewPage({
       if (!res.ok) throw new Error(`Failed to ${action}`);
       window.dispatchEvent(new Event("eob-batches-changed"));
 
-      toast.success(`EOB ${action}ed successfully`);
+      const successCopy = {
+        approve: "EOB approved",
+        reject: "EOB rejected",
+        flag: "EOB flagged",
+      } as const;
+      toast.success(successCopy[action]);
     } catch {
       // Revert optimistic update on failure
       toast.error(`Failed to ${action} EOB`);
