@@ -29,8 +29,7 @@ const exportOptions = [
   {
     id: "835" as const,
     name: "X12 835 (ERA)",
-    description: "ANSI X12 005010X221A1 — auto-posts in all PMS",
-    detail: "Recommended. Works with Dentrix, Open Dental, and Eaglesoft ERA import.",
+    description: "Download an X12 835 file. This app does not post it into practice software.",
     icon: Shield,
     color: "bg-[#416c6f]",
     recommended: true,
@@ -38,8 +37,7 @@ const exportOptions = [
   {
     id: "dentrix" as const,
     name: "Dentrix CSV",
-    description: "Legacy CSV format for manual import",
-    detail: "Fallback if your Dentrix version doesn't support ERA.",
+    description: "Download a CSV formatted for your practice software's import.",
     icon: FileSpreadsheet,
     color: "from-gray-100 to-gray-200 text-gray-700",
     recommended: false,
@@ -47,8 +45,7 @@ const exportOptions = [
   {
     id: "eaglesoft" as const,
     name: "Eaglesoft CSV",
-    description: "Patterson Eaglesoft CSV format",
-    detail: "Fallback if your Eaglesoft version doesn't support ERA.",
+    description: "Download a CSV formatted for your practice software's import.",
     icon: FileSpreadsheet,
     color: "from-gray-100 to-gray-200 text-gray-700",
     recommended: false,
@@ -56,8 +53,7 @@ const exportOptions = [
   {
     id: "open_dental" as const,
     name: "Open Dental CSV",
-    description: "Open Dental CSV format",
-    detail: "Fallback if you prefer CSV over automatic ERA processing.",
+    description: "Download a CSV formatted for your practice software's import.",
     icon: FileSpreadsheet,
     color: "from-gray-100 to-gray-200 text-gray-700",
     recommended: false,
@@ -130,9 +126,7 @@ export default function ExportPage({
 
       setExported(true);
       toast.success(
-        selectedFormat === "835"
-          ? "835 ERA file exported — ready for PMS import!"
-          : "CSV exported successfully!"
+        selectedFormat === "835" ? "835 file downloaded." : "CSV downloaded."
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Export failed";
@@ -225,9 +219,7 @@ export default function ExportPage({
                 {selectedOption.name}
               </p>
               <p className="text-sm font-medium text-black/50">
-                {selectedFormat === "835"
-                  ? ".835 file for PMS ERA import"
-                  : ".csv file for manual import"}
+                {selectedOption.description}
               </p>
             </div>
             {exported && (

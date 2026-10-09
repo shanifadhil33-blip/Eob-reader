@@ -29,9 +29,10 @@ export default function PrivacyPolicyPage() {
           (payer, patient, claim, check, and line items).
         </li>
         <li>
-          That text is sent to OpenRouter for extraction, or to a local Ollama
-          server when that provider is configured. No zero-retention setting is
-          applied in this code.
+          That text is sent to Google Gemini, then Groq, then OpenRouter, skipping
+          any provider whose API key is not set. If AI_PROVIDER=ollama, it goes
+          to a local Ollama server instead. No zero-retention setting is applied
+          in this code.
         </li>
         <li>Feedback text you submit from Settings.</li>
         <li>

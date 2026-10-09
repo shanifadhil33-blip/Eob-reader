@@ -1,12 +1,17 @@
+import { completeWithGemini } from "./gemini";
+import { completeWithGroq } from "./groq";
 import {
   buildExtractionRequest,
   buildHealthProbeRequest,
   EXTRACTION_MODELS,
-  extractWithFallback,
+  extractAcrossProviders,
+  groqModelName,
   interpretHealthProbe,
   openRouterHeaders,
   OPENROUTER_TIMEOUT_MS,
   parseExtractionJson,
+  parseGeminiModels,
+  providerKey,
   publicErrorSnippet,
   READER_BUSY_MESSAGE,
   TEXT_EXTRACTION_PROMPT,
@@ -70,15 +75,15 @@ export async function probeOpenRouterModel(model: string): Promise<HealthProbe> 
       signal: AbortSignal.timeout(20_000),
     });
     const body = await response.text();
-    const result = interpretHealthProbe(model, response.status, body);
+    const result = interpretHealthProbe("openrouter", model, response.status, body);
     if (!result.ok) {
-      console.error(`[ai-health] model=${result.model} status=${result.status} error=${result.error_snippet ?? ""}`);
+      console.error(`[ai-health] provider=${result.provider} model=${result.model} status=${result.status} error=${result.error_snippet ?? ""}`);
     }
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "request failed";
-    const result = interpretHealthProbe(model, 0, message);
-    console.error(`[ai-health] model=${result.model} status=${result.status} error=${result.error_snippet ?? ""}`);
+    const result = interpretHealthProbe("openrouter", model, 0, message);
+    console.error(`[ai-health] provider=${result.provider} model=${result.model} status=${result.status} error=${result.error_snippet ?? ""}`);
     return result;
   }
 }
@@ -114,5 +119,25 @@ export async function extractEOBFromText(pdfText: string): Promise<EOBExtraction
     }
   }
 
-  return extractWithFallback((model) => completeWithOpenRouter(model, pdfText), EXTRACTION_MODELS);
+  const geminiKey = providerKey(process.env.GEMINI_API_KEY);
+  const groqKey = providerKey(process.env.GROQ_API_KEY);
+  const openRouterKey = providerKey(process.env.OPENROUTER_API_KEY);
+
+  return extractAcrossProviders({
+    gemini: geminiKey
+      ? {
+          models: parseGeminiModels(process.env.GEMINI_MODELS),
+          complete: (model) => completeWithGemini(geminiKey, model, pdfText),
+        }
+      : undefined,
+    groq: groqKey
+      ? {
+          model: groqModelName(process.env.GROQ_MODEL),
+          complete: (model) => completeWithGroq(groqKey, model, pdfText),
+        }
+      : undefined,
+    openRouter: openRouterKey
+      ? { models: EXTRACTION_MODELS, complete: (model) => completeWithOpenRouter(model, pdfText) }
+      : undefined,
+  });
 }

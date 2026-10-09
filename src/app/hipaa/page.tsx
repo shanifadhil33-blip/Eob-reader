@@ -22,10 +22,11 @@ export default function DataHandlingPage() {
           for your account.
         </li>
         <li>
-          The app reads the PDF text in the browser and sends that text to
-          OpenRouter (model <span className="font-mono text-sm">openai/gpt-4o-mini</span>
-          ) to draft line items. If <span className="font-mono text-sm">AI_PROVIDER=ollama</span>{" "}
-          is set, the text goes to a local Ollama server instead.
+          The app reads the PDF text in the browser and sends that text to the
+          configured extraction providers, in order: Google Gemini, then Groq,
+          then OpenRouter. A provider with no API key is skipped. If{" "}
+          <span className="font-mono text-sm">AI_PROVIDER=ollama</span> is set,
+          the text goes to a local Ollama server instead.
         </li>
         <li>
           A scanned PDF with no text layer is not extracted. You get a short
