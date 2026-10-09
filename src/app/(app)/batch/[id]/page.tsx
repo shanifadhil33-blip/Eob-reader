@@ -28,6 +28,7 @@ import Link from "next/link";
 import { BackLink } from "@/components/back-link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatBatchTitle } from "@/lib/format-batch";
 
 interface LineItem {
   id: string;
@@ -70,6 +71,7 @@ interface EOBRecord {
 interface BatchData {
   id: string;
   name: string;
+  created_at: string;
   total_eobs: number;
   processed_eobs: number;
   approved_eobs: number;
@@ -104,7 +106,7 @@ function ConfidenceBadge({ score }: { score: number | null }) {
 
 function getStatusBadge(status: string) {
   const styles: Record<string, string> = {
-    pending: "bg-blue-50 text-blue-600 border-blue-200",
+    pending: "bg-[#e7f0f0] text-[#416c6f] border-[#b9cecf]",
     approved: "bg-emerald-50 text-emerald-600 border-emerald-200",
     flagged: "bg-amber-50 text-amber-600 border-amber-200",
     rejected: "bg-red-50 text-red-600 border-red-200",
@@ -246,7 +248,9 @@ export default function BatchReviewPage({
       <div className="flex flex-col gap-4 rounded-2xl bg-[#eee0c7] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="min-w-0">
           <BackLink href="/dashboard" />
-          <h1 className="font-display mt-2 truncate text-2xl" title={batch.name}>{batch.name}</h1>
+          <h1 className="font-display mt-2 truncate text-2xl" title={formatBatchTitle(batch.created_at)}>
+            {formatBatchTitle(batch.created_at)}
+          </h1>
             <p className="text-sm text-[#614f38]">
               {approvedCount}/{batch.eob_extractions.length} approved ·{" "}
               {batch.eob_extractions.filter((e) => e.review_status === "pending").length} pending
@@ -269,7 +273,7 @@ export default function BatchReviewPage({
             <DialogContent className="max-w-7xl w-[95vw] h-[90vh] p-0 overflow-hidden bg-white border-black/10 flex flex-col rounded-3xl shadow-2xl">
               <DialogHeader className="p-5 border-b border-black/5 bg-gray-50/50 shrink-0 flex flex-row items-center justify-between pointer-events-none">
                 <DialogTitle className="text-black flex items-center gap-2 text-lg font-bold">
-                  <FileText className="w-5 h-5 text-blue-600" />
+                  <FileText className="w-5 h-5 text-[#416c6f]" />
                   {currentEob?.pdf_storage_path.split("/").pop()}
                 </DialogTitle>
                 <span className="sr-only">PDF</span>
@@ -283,7 +287,7 @@ export default function BatchReviewPage({
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-black/40 pt-10">
-                    <Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-500" />
+                    <Loader2 className="w-10 h-10 animate-spin mb-4 text-[#416c6f]" />
                     <p className="text-base font-bold">Loading PDF securely...</p>
                   </div>
                 )}
@@ -324,10 +328,12 @@ export default function BatchReviewPage({
               className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 ${
                 i === currentEobIndex
                   ? eob.review_status === "approved"
-                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20 border-emerald-600"
+                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20 border border-emerald-600"
                     : eob.review_status === "rejected"
-                    ? "bg-red-500 text-white shadow-md shadow-red-500/20 border-red-600"
-                    : "bg-blue-600 text-white shadow-md shadow-blue-500/20 border-blue-700"
+                    ? "bg-red-500 text-white shadow-md shadow-red-500/20 border border-red-600"
+                    : eob.review_status === "flagged"
+                    ? "bg-amber-500 text-white shadow-md shadow-amber-500/20 border border-amber-600"
+                    : "bg-[#416c6f] text-[#f2efe9] shadow-md shadow-[#416c6f]/25 border border-[#355a5d]"
                   : eob.review_status === "approved"
                     ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
                     : eob.review_status === "rejected"
@@ -359,7 +365,7 @@ export default function BatchReviewPage({
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2 bg-white p-4 sm:p-6 rounded-3xl border border-black/5 shadow-sm">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-50 rounded-xl flex items-center justify-center border border-black/5 shrink-0">
-                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-[#416c6f]" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

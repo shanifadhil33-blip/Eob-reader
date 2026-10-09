@@ -7,6 +7,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { formatBatchTitle } from "@/lib/format-batch";
 import { pageHasText, textFromItems } from "@/lib/pdf/text-layer";
 
 interface BatchSummary {
@@ -272,25 +273,28 @@ export default function DashboardPage() {
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-[#d1b996] rounded-2xl bg-[#eee0c7]">
-            {batches.map((batch) => (
-              <li key={batch.id} className="flex items-center gap-3 px-4 py-3">
-                <Link href={`/batch/${batch.id}`} className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{batch.name}</span>
-                  <span className="block text-sm text-[#614f38]">
-                    {batch.processed_eobs} read · {batch.approved_eobs} approved · {batch.status}
-                  </span>
-                </Link>
-                <button
-                  type="button"
-                  className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm text-[#8c3a2f]"
-                  aria-label={`Delete ${batch.name}`}
-                  onClick={() => setPendingDelete(batch)}
-                >
-                  <Trash2 className="size-4" />
-                  Delete
-                </button>
-              </li>
-            ))}
+            {batches.map((batch) => {
+              const title = formatBatchTitle(batch.created_at);
+              return (
+                <li key={batch.id} className="flex items-center gap-3 px-4 py-3">
+                  <Link href={`/batch/${batch.id}`} className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{title}</span>
+                    <span className="block text-sm text-[#614f38]">
+                      {batch.processed_eobs} read · {batch.approved_eobs} approved · {batch.status}
+                    </span>
+                  </Link>
+                  <button
+                    type="button"
+                    className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm text-[#8c3a2f]"
+                    aria-label={`Delete ${title}`}
+                    onClick={() => setPendingDelete(batch)}
+                  >
+                    <Trash2 className="size-4" />
+                    Delete
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

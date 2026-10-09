@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { BackLink } from "@/components/back-link";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { OptionMenu } from "@/components/option-menu";
+import { formatBatchTitle } from "@/lib/format-batch";
 
 interface EOBHistoryItem {
   id: string;
@@ -163,6 +164,9 @@ function HistoryPage() {
                 <span className="block truncate text-sm text-[#614f38]">
                   {item.payer_name || "Unknown payer"} · {item.review_status}
                   {item.check_amount != null ? ` · $${item.check_amount.toFixed(2)}` : ""}
+                </span>
+                <span className="block truncate text-sm text-[#614f38]">
+                  {formatBatchTitle(item.created_at)}
                 </span>
               </Link>
               <button
