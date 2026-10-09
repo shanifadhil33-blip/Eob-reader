@@ -1,79 +1,19 @@
 import {
+  buildExtractionRequest,
+  buildHealthProbeRequest,
+  EXTRACTION_MODELS,
   extractWithFallback,
-  FREE_EXTRACTION_MODELS,
-  OUTPUT_TOKEN_CAP,
+  interpretHealthProbe,
+  openRouterHeaders,
+  OPENROUTER_TIMEOUT_MS,
   parseExtractionJson,
+  publicErrorSnippet,
   READER_BUSY_MESSAGE,
+  TEXT_EXTRACTION_PROMPT,
+  type HealthProbe,
   type ModelCompletion,
 } from "./model-chain";
 import type { EOBExtraction } from "./types";
-
-const TEXT_EXTRACTION_PROMPT = `You are an expert US insurance EOB (Explanation of Benefits) data extraction AI.
-
-Your task: Extract ALL structured data from the following raw text extracted from an EOB document with maximum accuracy.
-
-Rules:
-1. Output ONLY valid JSON matching the provided schema. No markdown, no explanation.
-2. Extract EVERY line item — do not skip any procedure, including denied lines.
-3. Copy the procedure code as printed. Dental lines use CDT codes such as D0120. Other lines may use CPT codes such as 93000 or 80053.
-4. Adjustment codes follow ANSI X12 standards (CO-45, CO-50, CO-197, PR-1, PR-2, OA-23, etc.).
-5. If a line is denied, set insurance_paid to 0 and keep the adjustment code and amount.
-6. All dollar amounts as numbers with 2 decimal places.
-7. Dates in YYYY-MM-DD format.
-8. If a field is not visible or not applicable, use null.
-9. Include a confidence_score (0.0 to 1.0) for the overall extraction quality.
-10. If multiple patients appear on one EOB, return an array of extraction objects.
-
-Required JSON schema:
-{
-  "payer_name": "string|null",
-  "payer_id": "string|null",
-  "patient_name": "string|null",
-  "patient_dob": "YYYY-MM-DD|null",
-  "patient_id": "string|null",
-  "subscriber_name": "string|null",
-  "subscriber_id": "string|null",
-  "group_number": "string|null",
-  "claim_number": "string|null",
-  "date_of_service": "YYYY-MM-DD|null",
-  "provider_name": "string|null",
-  "provider_npi": "string|null",
-  "check_number": "string|null",
-  "check_date": "YYYY-MM-DD|null",
-  "check_amount": "number|null",
-  "line_items": [
-    {
-      "procedure_code": "string|null",
-      "procedure_description": "string|null",
-      "tooth_number": "string|null",
-      "date_of_service": "YYYY-MM-DD|null",
-      "billed_amount": "number|null",
-      "allowed_amount": "number|null",
-      "insurance_paid": "number|null",
-      "patient_responsibility": "number|null",
-      "deductible_applied": "number|null",
-      "copay": "number|null",
-      "coinsurance": "number|null",
-      "adjustment_amount": "number|null",
-      "adjustment_code": "string|null",
-      "adjustment_description": "string|null",
-      "remark_codes": ["string"],
-      "remark_description": "string|null",
-      "confidence_score": "number"
-    }
-  ],
-  "total_billed": "number|null",
-  "total_allowed": "number|null",
-  "total_insurance_paid": "number|null",
-  "total_patient_responsibility": "number|null",
-  "total_adjustments": "number|null",
-  "remarks": "string|null",
-  "denial_flags": ["string"],
-  "confidence_score": "number (0.0-1.0)"
-}
-
-[RAW EOB TEXT BEGINS BELOW]
-`;
 
 function readMessageContent(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
@@ -97,25 +37,50 @@ function readMessageContent(payload: unknown): string | null {
 async function completeWithOpenRouter(model: string, pdfText: string): Promise<ModelCompletion> {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: OUTPUT_TOKEN_CAP,
-      messages: [
-        {
-          role: "user",
-          content: `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}`,
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(20000),
+    headers: openRouterHeaders(process.env.OPENROUTER_API_KEY || ""),
+    body: JSON.stringify(buildExtractionRequest(model, pdfText)),
+    signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
   });
 
-  if (!response.ok) return { status: response.status, content: null };
-  return { status: response.status, content: readMessageContent(await response.json()) };
+  if (!response.ok) {
+    const errorBody = await response.text();
+    return { status: response.status, content: null, errorSnippet: publicErrorSnippet(errorBody) };
+  }
+
+  const payload: unknown = await response.json();
+  if (payload && typeof payload === "object" && "error" in payload && payload.error) {
+    const error = payload.error;
+    const message =
+      typeof error === "string"
+        ? error
+        : error && typeof error === "object" && "message" in error && typeof error.message === "string"
+          ? error.message
+          : "provider error";
+    return { status: response.status, content: null, errorSnippet: publicErrorSnippet(message) };
+  }
+  return { status: response.status, content: readMessageContent(payload) };
+}
+
+export async function probeOpenRouterModel(model: string): Promise<HealthProbe> {
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: openRouterHeaders(process.env.OPENROUTER_API_KEY || ""),
+      body: JSON.stringify(buildHealthProbeRequest(model)),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const body = await response.text();
+    const result = interpretHealthProbe(model, response.status, body);
+    if (!result.ok) {
+      console.error(`[ai-health] model=${result.model} status=${result.status} error=${result.error_snippet ?? ""}`);
+    }
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "request failed";
+    const result = interpretHealthProbe(model, 0, message);
+    console.error(`[ai-health] model=${result.model} status=${result.status} error=${result.error_snippet ?? ""}`);
+    return result;
+  }
 }
 
 export async function extractEOBFromText(pdfText: string): Promise<EOBExtraction> {
@@ -149,5 +114,5 @@ export async function extractEOBFromText(pdfText: string): Promise<EOBExtraction
     }
   }
 
-  return extractWithFallback((model) => completeWithOpenRouter(model, pdfText), FREE_EXTRACTION_MODELS);
+  return extractWithFallback((model) => completeWithOpenRouter(model, pdfText), EXTRACTION_MODELS);
 }
