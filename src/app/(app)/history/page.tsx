@@ -8,6 +8,12 @@ import { toast } from "sonner";
 import { BackLink } from "@/components/back-link";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { OptionMenu } from "@/components/option-menu";
+import { formatBatchTitle } from "@/lib/format-batch";
+
+interface HistoryBatch {
+  id: string;
+  created_at: string;
+}
 
 interface EOBHistoryItem {
   id: string;
@@ -19,6 +25,12 @@ interface EOBHistoryItem {
   review_status: string;
   created_at: string;
   batch_id: string;
+  batches: HistoryBatch | HistoryBatch[] | null;
+}
+
+function batchTimestamp(item: EOBHistoryItem) {
+  const batch = Array.isArray(item.batches) ? item.batches[0] : item.batches;
+  return batch?.created_at || item.created_at;
 }
 
 const sortOptions = [
@@ -163,6 +175,9 @@ function HistoryPage() {
                 <span className="block truncate text-sm text-[#614f38]">
                   {item.payer_name || "Unknown payer"} · {item.review_status}
                   {item.check_amount != null ? ` · $${item.check_amount.toFixed(2)}` : ""}
+                </span>
+                <span className="block truncate text-sm text-[#614f38]">
+                  {formatBatchTitle(batchTimestamp(item))}
                 </span>
               </Link>
               <button

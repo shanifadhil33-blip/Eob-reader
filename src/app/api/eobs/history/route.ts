@@ -25,7 +25,7 @@ export async function GET() {
   const { data: eobs, error } = await supabase
     .from("eob_extractions")
     .select(
-      "id, patient_name, payer_name, claim_number, date_of_service, check_amount, total_insurance_paid, review_status, reviewed_at, created_at, confidence_score, batch_id, batches(id, name)"
+      "id, patient_name, payer_name, claim_number, date_of_service, check_amount, total_insurance_paid, review_status, reviewed_at, created_at, confidence_score, batch_id, batches(id, created_at)"
     )
     .eq("practice_id", practice.id)
     .order("created_at", { ascending: false })

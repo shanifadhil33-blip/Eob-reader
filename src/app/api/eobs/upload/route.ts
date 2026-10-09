@@ -81,13 +81,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create batch
-    const batchName = `Batch ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+    // The visible title is formatted from created_at in the viewer's
+    // local time. A server locale string would be UTC on the host.
     const { data: batch, error: batchError } = await supabase
       .from("batches")
       .insert({
         practice_id: practice.id,
-        name: batchName,
+        name: "Batch",
         total_eobs: files.length,
         status: "processing",
       })
